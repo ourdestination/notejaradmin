@@ -96,6 +96,13 @@ button.b:disabled{opacity:.5;cursor:default}
 .msg{max-width:85%;padding:7px 11px;border-radius:12px;background:var(--bg);white-space:pre-wrap;word-break:break-word;font-size:14px}
 .msg.me{align-self:flex-end;background:var(--primary-soft)}
 .msg small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.ls{font-size:12.5px;color:var(--muted);margin-top:3px}.ls.on{color:var(--ok);font-weight:700}
+.pic{width:84px;height:84px;border-radius:50%;object-fit:cover;background:var(--bg);border:1px solid var(--line)}
+.det{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:flex;gap:12px;align-items:flex-start}
+.det .kv{margin-top:2px}
+.logrow{padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}.logrow:last-child{border:0}
+.logrow small{display:block;color:var(--muted);font-size:12px}
+.rep{margin-top:6px;font-size:13px;color:var(--danger)}
 .empty{text-align:center;color:var(--muted);padding:26px 0}
 .box{white-space:pre-wrap;background:var(--bg);border-radius:10px;padding:11px 12px;margin:8px 0;font-size:14px}
 .err{color:var(--danger);font-size:13px;min-height:19px;margin-top:8px}
@@ -134,6 +141,7 @@ button.b.sm{min-height:34px;padding:5px 12px;font-size:13px;border-radius:10px}
   #toast{bottom:28px}
   .sbg{display:none}
 }
+.pwrap{position:relative}.pwrap input{padding-right:46px}.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:0;background:none;color:var(--muted);cursor:pointer;border-radius:50%}.eye:active{background:var(--primary-soft)}.eye svg{width:21px;height:21px}
 </style>
 </head>
 <body>
@@ -144,7 +152,7 @@ button.b.sm{min-height:34px;padding:5px 12px;font-size:13px;border-radius:10px}
     <h2 style="text-align:center">Note Jar Admin</h2>
     <p class="sub" style="text-align:center">অ্যাপে Admin হিসেবে যে ফোন নম্বর ও পাসওয়ার্ড দিয়ে লগইন করেন সেটাই দিন।</p>
     <label for="ph">Phone number</label><input id="ph" type="tel" placeholder="01XXXXXXXXX" autocomplete="username">
-    <label for="pw">Password</label><input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+    <label for="pw">Password</label><div class="pwrap"><input id="pw" type="password" placeholder="Password" autocomplete="current-password"><button type="button" id="eye" class="eye" aria-label="Show password" title="Show password"><svg id="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg id="eye-off" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A16.6 16.6 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 4-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
     <div class="acts"><button class="b" id="go" style="width:100%">Login</button></div>
     <div id="lmsg" class="err"></div>
   </div>
@@ -164,7 +172,7 @@ const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAIAAAAErfB6
 document.querySelectorAll("img[data-logo]").forEach(i => { i.src = LOGO; });
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getDatabase, ref, get, set, remove, update, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import { getDatabase, ref, get, set, remove, update, onValue, push, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDWKra1j3o3x4LrK1_9aGbvfxxV4qoiRgI",
@@ -177,10 +185,10 @@ const auth = getAuth(app), db = getDatabase(app);
 const $ = s => document.querySelector(s);
 const EMAIL_DOMAIN = "notejar.app", OWNER = "8801518411872", HOUR = 3600000, DELETE_WARN_MS = 24 * HOUR, FB_MAX = 1000, GRACE_MS = 7 * 24 * HOUR;
 
-let me = null, srvOff = 0, tab = "dash", dirty = false, unsubs = [], sweepT = 0;
+let metaT = 0, me = null, srvOff = 0, tab = "dash", dirty = false, unsubs = [], sweepT = 0;
 try { tab = localStorage.getItem("nj_admin_tab") || "dash"; } catch {}
 const nowTs = () => Date.now() + srvOff;
-const S = { phones: {}, emails: {}, reqs: {}, lreqs: {}, locked: {}, susp: {}, warn: {}, admins: {}, fb: {}, upd: null, notice: null, hdb: null, fest: {}, festMeta: {}, eve: {}, names: new Map() };
+const S = { phones: {}, emails: {}, reqs: {}, lreqs: {}, locked: {}, susp: {}, warn: {}, admins: {}, fb: {}, upd: null, notice: null, hdb: null, fest: {}, festMeta: {}, eve: {}, names: new Map(), approved: {}, reports: {}, log: {}, appInfo: {}, fl: {}, meta: new Map() };
 const drafts = {};
 
 /* ---------- app-style icons + navigation ---------- */
@@ -193,13 +201,15 @@ const ICONS = {
   download: '<path d="M12 4v11"/><path d="M7.5 11 12 15.5 16.5 11"/><path d="M5 20h14"/>',
   bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  flag: '<path d="M5 21V4"/><path d="M5 4h11l-1.8 4 1.8 4H5"/>',
+  list: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
   database: '<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>',
   shield: '<path d="M12 3 4.5 6v5.5c0 4.5 3.1 8 7.5 9.5 4.4-1.5 7.5-5 7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/>',
   grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/>'
 };
 const ico = n => { const e = document.createElement("span"); e.className = "ic"; e.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[n] || "") + "</svg>"; return e; };
-const TAB_ICON = { dash: "home", ids: "users", req: "userplus", login: "key", fb: "message", upd: "download", notice: "bell", fest: "calendar", db: "database", admins: "shield" };
-const BOTTOM = { dash: "Home", ids: "IDs", req: "New ID", fb: "Feedback" }, MORE = ["login", "upd", "notice", "fest", "db", "admins"];
+const TAB_ICON = { dash: "home", ids: "users", req: "userplus", login: "key", fb: "message", upd: "download", notice: "bell", fest: "calendar", db: "database", reports: "flag", log: "list", admins: "shield" };
+const BOTTOM = { dash: "Home", ids: "IDs", req: "New ID", fb: "Feedback" }, MORE = ["login", "reports", "log", "upd", "notice", "fest", "db", "admins"];
 const closeSheet = () => $("#sheet").classList.add("hidden");
 
 /* ---------- small helpers ---------- */
@@ -254,6 +264,7 @@ $("#go").onclick = async () => {
   for (const em of emails) { try { await signInWithEmailAndPassword(auth, em, pass); return; } catch {} }
   say("নম্বর বা পাসওয়ার্ড ভুল");
 };
+$("#eye").onclick = () => { const pw = $("#pw"), show = pw.type === "password"; pw.type = show ? "text" : "password"; $("#eye-on").classList.toggle("hidden", show); $("#eye-off").classList.toggle("hidden", !show); $("#eye").setAttribute("aria-label", show ? "Hide password" : "Show password"); pw.focus(); };
 $("#pw").addEventListener("keydown", e => e.key === "Enter" && $("#go").click());
 $("#out").onclick = () => signOut(auth);
 
@@ -273,7 +284,7 @@ onAuthStateChanged(auth, async u => {
 function watch(path, key) {
   unsubs.push(onValue(ref(db, path), s => {
     S[key] = key === "upd" || key === "notice" || key === "hdb" ? s.val() : (s.val() || {});
-    if (key === "phones") loadNames();
+    if (key === "phones") { loadNames(); loadMeta(); }
     if (key === "warn") sweep();
     render();
   }, e => toast(path + ": " + (e.message || "read failed"), true)));
@@ -283,11 +294,14 @@ function start() {
   unsubs.push(onValue(ref(db, ".info/serverTimeOffset"), s => { srvOff = s.val() || 0; }));
   watch("phones", "phones"); watch("loginEmail", "emails"); watch("idRequests", "reqs"); watch("loginReq", "lreqs");
   watch("locked", "locked"); watch("suspended", "susp"); watch("deleteWarn", "warn"); watch("admins", "admins");
+  watch("approved", "approved"); watch("reports", "reports"); watch("appInfo", "appInfo"); watch("forceLogout", "fl");
+  unsubs.push(onValue(query(ref(db, "adminLog"), orderByKey(), limitToLast(150)), s => { S.log = s.val() || {}; render(); }, () => {}));
+  metaT = setInterval(() => loadMeta(true), 120000);
   watch("feedback", "fb"); watch("appUpdate", "upd"); watch("hostServer/notice", "notice"); watch("hostServer/db", "hdb"); watch("festivals", "fest"); watch("festivalMeta", "festMeta"); watch("festivalEve", "eve");
   sweepT = setInterval(sweep, 60000);
   render();
 }
-function stop() { unsubs.forEach(f => { try { f(); } catch {} }); unsubs = []; clearInterval(sweepT); }
+function stop() { unsubs.forEach(f => { try { f(); } catch {} }); unsubs = []; clearInterval(sweepT); clearInterval(metaT); }
 
 async function loadNames() {
   const todo = [...new Set(Object.values(S.phones))].filter(u => !S.names.has(u));
@@ -296,6 +310,24 @@ async function loadNames() {
     render();
   }
 }
+/* last seen / online / about per user (small values only; the photo is loaded only when "Details" is opened) */
+async function loadMeta(force) {
+  const todo = [...new Set(Object.values(S.phones))].filter(u => force || !S.meta.has(u));
+  for (let i = 0; i < todo.length; i += 10) {
+    await Promise.all(todo.slice(i, i + 10).map(u => Promise.all([get(ref(db, "users/" + u + "/lastSeen")), get(ref(db, "users/" + u + "/online")), get(ref(db, "users/" + u + "/about"))])
+      .then(([a, b, c]) => S.meta.set(u, { lastSeen: a.val(), online: b.val() === true, about: c.val() || "" })).catch(() => { if (!S.meta.has(u)) S.meta.set(u, {}); })));
+    render();
+  }
+}
+/* admin activity log: who did what to whom (best effort, never blocks the action) */
+const adminLabel = () => (S.names.get(me?.uid) || (me?.email || "").replace(/@notejar\.app$/, "") || "admin").slice(0, 60);
+const targetLabel = r => ((r.name || "") + (r.phone ? " +" + r.phone : "")).trim().slice(0, 60);
+function logAct(action, r, note) {
+  const e = { ts: nowTs(), by: adminLabel(), action, target: targetLabel(r || {}) };
+  if (note) e.note = String(note).slice(0, 160);
+  try { push(ref(db, "adminLog"), e).catch(() => {}); } catch {}
+}
+const logged = (fn, ok, action, r, note) => run(fn, ok).then(good => { if (good) logAct(action, r, note); return good; });
 /* 24-hour warning is over -> remove the ID (same as the app does) */
 async function sweep() {
   const now = nowTs();
@@ -312,7 +344,9 @@ async function sweep() {
 const isAdminRow = (phone, uid) => !!S.admins[uid] || phone === OWNER || uid === me?.uid;
 const rows = () => Object.entries(S.phones).map(([phone, uid]) => ({
   phone, uid, name: S.names.get(uid) || "", email: S.emails[phone] || "",
-  locked: S.locked[uid], susp: S.susp[uid], warn: S.warn[uid], admin: isAdminRow(phone, uid)
+  locked: S.locked[uid], susp: S.susp[uid], warn: S.warn[uid], admin: isAdminRow(phone, uid),
+  meta: S.meta.get(uid) || {}, joined: (S.approved[uid] && S.approved[uid].ts) || (S.reqs[uid] && S.reqs[uid].ts) || 0,
+  reports: Object.keys(S.reports[uid] || {}).length, app: S.appInfo[uid] || null
 })).sort((a, b) => (a.name || a.phone).localeCompare(b.name || b.phone));
 const reqList = () => Object.entries(S.reqs).filter(([, v]) => v && v.phone).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => (b.ts || 0) - (a.ts || 0));
 const loginList = () => { const out = []; for (const [uid, m] of Object.entries(S.lreqs || {})) for (const [did, v] of Object.entries(m || {})) if (v && v.ts) out.push({ uid, did, ...v }); return out.sort((a, b) => (b.ts || 0) - (a.ts || 0)); };
@@ -324,34 +358,44 @@ const counts = () => ({
   login: loginList().filter(q => q.status === "pending").length,
   fb: fbList().filter(t => t.status === "open").length,
   locked: Object.keys(S.locked).length, susp: Object.keys(S.susp).length, warn: Object.keys(S.warn).length,
-  admins: Object.keys(S.admins).filter(k => S.admins[k]).length + 1
+  admins: Object.keys(S.admins).filter(k => S.admins[k]).length + 1,
+  today: rows().filter(r => r.joined && nowTs() - r.joined < 864e5).length, week: rows().filter(r => r.joined && nowTs() - r.joined < 7 * 864e5).length,
+  online: rows().filter(r => r.meta.online).length, reported: Object.keys(S.reports || {}).filter(u => Object.keys(S.reports[u] || {}).length).length
 });
 
 /* ---------- actions (same rules as the app's Admin panel) ---------- */
-const lockId = (r, on) => run(() => on ? set(ref(db, "locked/" + r.uid), { ts: nowTs(), by: me.uid }) : remove(ref(db, "locked/" + r.uid)), on ? "ID locked" : "ID unlocked");
-const suspendId = r => run(() => {
-  const up = { ["suspended/" + r.uid]: { ts: nowTs(), by: me.uid, name: r.name || "", phone: r.phone, email: r.email || "" }, ["banPhone/" + r.phone]: r.uid };
-  if (r.email) up["banEmail/" + banEmailKey(r.email)] = r.uid;
-  return update(ref(db), up);
-}, "ID suspended");
-const unsuspendId = r => run(() => {
+const lockId = (r, on) => logged(() => on ? set(ref(db, "locked/" + r.uid), { ts: nowTs(), by: me.uid }) : remove(ref(db, "locked/" + r.uid)), on ? "ID locked" : "ID unlocked", on ? "Lock" : "Unlock", r);
+const suspendId = r => {
+  const reason = window.prompt("Suspend করার কারণ লিখুন (যেমন: Spam, Abuse, Fake ID):", "");
+  if (reason === null) return;
+  const why = reason.trim().slice(0, 120);
+  return logged(() => {
+    const rec = { ts: nowTs(), by: me.uid, name: r.name || "", phone: r.phone, email: r.email || "" };
+    if (why) rec.reason = why;
+    const up = { ["suspended/" + r.uid]: rec, ["banPhone/" + r.phone]: r.uid };
+    if (r.email) up["banEmail/" + banEmailKey(r.email)] = r.uid;
+    return update(ref(db), up);
+  }, "ID suspended", "Suspend", r, why);
+};
+const forceLogoutId = r => logged(() => update(ref(db), { ["forceLogout/" + r.uid]: { ts: nowTs(), by: me.uid }, ["devices/" + r.uid]: null }), "Force logout পাঠানো হয়েছে — সব ডিভাইস থেকে Log out হবে", "Force logout", r);
+const unsuspendId = r => logged(() => {
   const up = { ["suspended/" + r.uid]: null, ["banPhone/" + r.phone]: null };
   if (r.email) up["banEmail/" + banEmailKey(r.email)] = null;
   return update(ref(db), up);
-}, "Suspension removed");
-const warnDelete = r => run(() => { const ts = nowTs(); return set(ref(db, "deleteWarn/" + r.uid), { ts, deleteAt: ts + DELETE_WARN_MS, by: me.uid, phone: r.phone }); }, "24-hour warning sent — তারপর ID মুছে যাবে");
-const cancelDelete = r => run(() => remove(ref(db, "deleteWarn/" + r.uid)), "Deletion cancelled");
+}, "Suspension removed", "Unsuspend", r);
+const warnDelete = r => logged(() => { const ts = nowTs(); return set(ref(db, "deleteWarn/" + r.uid), { ts, deleteAt: ts + DELETE_WARN_MS, by: me.uid, phone: r.phone }); }, "24-hour warning sent — তারপর ID মুছে যাবে", "Delete (24h warning)", r);
+const cancelDelete = r => logged(() => remove(ref(db, "deleteWarn/" + r.uid)), "Deletion cancelled", "Undo delete", r);
 async function isBanned(phone, email) {
   try { const [a, b] = await Promise.all([get(ref(db, "banPhone/" + phone)), get(ref(db, "banEmail/" + banEmailKey(email)))]); return a.exists() || b.exists(); } catch { return false; }
 }
-const approveReq = q => run(async () => {
+const approveReq = q => logged(async () => {
   if (await isBanned(q.phone, q.email)) throw new Error("This phone or Gmail is suspended");
   if (S.phones[q.phone] && S.phones[q.phone] !== q.uid) throw new Error("This phone number already has an ID");
   await update(ref(db), { ["approved/" + q.uid]: { ts: nowTs(), by: me.uid }, ["idRequests/" + q.uid + "/status"]: "approved" });
-}, "Approved — ID তৈরি হবে ব্যক্তি অ্যাপ খুললে");
-const rejectReq = q => run(() => set(ref(db, "idRequests/" + q.uid + "/status"), "rejected"), "Request rejected");
+}, "Approved — ID তৈরি হবে ব্যক্তি অ্যাপ খুললে", "Approve new ID", q);
+const rejectReq = q => logged(() => set(ref(db, "idRequests/" + q.uid + "/status"), "rejected"), "Request rejected", "Reject new ID", q);
 const removeReq = q => run(() => remove(ref(db, "idRequests/" + q.uid)), "Removed");
-const loginSet = (q, st) => run(() => set(ref(db, `loginReq/${q.uid}/${q.did}/status`), st), st === "approved" ? "Approved — Gmail verification ছাড়াই লগইন হবে" : "Request rejected");
+const loginSet = (q, st) => logged(() => set(ref(db, `loginReq/${q.uid}/${q.did}/status`), st), st === "approved" ? "Approved — Gmail verification ছাড়াই লগইন হবে" : "Request rejected", st === "approved" ? "Approve login" : "Reject login", { name: q.uname || "", phone: q.phone });
 const loginRemove = q => run(() => remove(ref(db, `loginReq/${q.uid}/${q.did}`)), "Removed");
 const fbStatus = (uid, st) => run(() => set(ref(db, "feedback/" + uid + "/status"), st), st === "closed" ? "Marked as closed" : "Reopened");
 const fbDelete = uid => run(() => remove(ref(db, "feedback/" + uid)), "Conversation deleted");
@@ -363,7 +407,7 @@ function fbReply(uid, text) {
 }
 
 /* ---------- views ---------- */
-const TABS = [["dash", "Dashboard"], ["ids", "All IDs"], ["req", "New ID"], ["login", "Login"], ["fb", "Feedback"], ["upd", "App update"], ["notice", "Notice"], ["fest", "Festivals"], ["db", "Database"], ["admins", "Admins"]];
+const TABS = [["dash", "Dashboard"], ["ids", "All IDs"], ["req", "New ID"], ["login", "Login"], ["fb", "Feedback"], ["upd", "App update"], ["notice", "Notice"], ["fest", "Festivals"], ["db", "Database"], ["reports", "Reports"], ["log", "Activity"], ["admins", "Admins"]];
 
 function statusOf(r) {
   if (r.admin) return ["Admin", "ok"];
@@ -372,37 +416,67 @@ function statusOf(r) {
   if (r.locked) return ["Locked", "warn"];
   return ["Active", "ok"];
 }
+const openDet = new Set(), photos = new Map();
+const nameByUid = uid => S.names.get(uid) || ((Object.keys(S.phones).find(p => S.phones[p] === uid)) ? "+" + Object.keys(S.phones).find(p => S.phones[p] === uid) : String(uid || "").slice(0, 8));
+function loadPhoto(uid) {
+  if (photos.has(uid)) return; photos.set(uid, null);
+  get(ref(db, "users/" + uid + "/photo")).then(s => { photos.set(uid, s.val() || ""); render(); }).catch(() => { photos.set(uid, ""); render(); });
+}
+function detailsBox(r) {
+  const ph = photos.get(r.uid); if (ph === undefined) loadPhoto(r.uid);
+  const rp = Object.values(S.reports[r.uid] || {}).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const ap = S.approved[r.uid];
+  return h("div", { class: "det" },
+    ph ? h("img", { class: "pic", src: ph, alt: "" }) : h("div", { class: "pic" }),
+    h("div", { style: "flex:1;min-width:0" },
+      h("div", { class: "kv", text: "About: " + (r.meta.about || "—") }),
+      h("div", { class: "kv", text: "Joined: " + (r.joined ? fmt(r.joined) : "—") + (ap && ap.by ? " · approved by " + nameByUid(ap.by) : "") }),
+      r.app ? h("div", { class: "kv", text: "App: v" + r.app.ver + " (code " + (r.app.code || "?") + ") · " + (r.app.dev || "?") + (r.app.os ? " · " + r.app.os : "") + " · শেষবার " + fmt(r.app.ts) }) : null,
+      S.fl[r.uid] && S.fl[r.uid].ts ? h("div", { class: "kv", text: "Force logout করা হয়েছে: " + fmt(S.fl[r.uid].ts) + " (" + nameByUid(S.fl[r.uid].by) + ")" }) : null,
+      h("div", { class: "kv muted", text: "UID: " + r.uid }),
+      r.susp ? h("div", { class: "kv", style: "color:var(--danger)", text: "Suspended " + fmt(r.susp.ts) + (r.susp.by ? " by " + nameByUid(r.susp.by) : "") + (r.susp.reason ? " — কারণ: " + r.susp.reason : " — কারণ দেওয়া হয়নি") }) : null,
+      rp.length ? h("div", { class: "rep", text: "Reports (" + rp.length + "):" }) : null,
+      ...rp.map(x => h("div", { class: "kv muted", text: "• " + x.reason + " — " + (x.name || "?") + " · " + fmt(x.ts) }))));
+}
 function idCard(r) {
   const st = statusOf(r), acts = [];
   if (!r.admin) {
     if (r.susp) acts.push(btn("Remove suspension", "s", () => ask("Suspension সরাবেন?") && unsuspendId(r)));
     else {
       acts.push(r.locked ? btn("Unlock", "s", () => lockId(r, false)) : btn("Lock", "s", () => ask("এই ID Lock করবেন?") && lockId(r, true)));
+      acts.push(btn("Force logout", "s", () => ask("এই ব্যবহারকারীকে সব ডিভাইস থেকে Log out করাবেন? (Trusted device তালিকাও মুছে যাবে, তাকে আবার লগইন করতে হবে)") && forceLogoutId(r)));
       acts.push(btn("Suspend", "d", () => ask("Suspend করলে এই ফোন নম্বর ও Gmail দিয়ে আর ID খোলা যাবে না। নিশ্চিত?") && suspendId(r)));
       acts.push(r.warn ? btn("Undo delete", "s", () => cancelDelete(r)) : btn("Delete", "d", () => ask("২৪ ঘণ্টার Warning দিয়ে এই ID মুছে ফেলবেন?") && warnDelete(r)));
     }
   }
+  const on = openDet.has(r.uid);
+  acts.push(btn(on ? "Hide details" : "Details", "s", () => { on ? openDet.delete(r.uid) : openDet.add(r.uid); render(true); }));
+  const seen = r.meta.online ? "● Online now" : r.meta.lastSeen ? "Last seen " + fmt(r.meta.lastSeen) : "Last seen: —";
   return h("div", { class: "card" },
-    h("div", { class: "top" }, h("div", { class: "t", text: r.name || "…" }), badge(st[0], st[1])),
+    h("div", { class: "top" }, h("div", { class: "t", text: r.name || "…" }), r.reports ? badge("⚠ " + r.reports, "bad") : null, badge(st[0], st[1])),
     h("div", { class: "kv", text: pretty(r.phone) }), r.email ? h("div", { class: "kv muted", text: r.email }) : null,
-    acts.length ? h("div", { class: "acts" }, acts) : null);
+    h("div", { class: "ls" + (r.meta.online ? " on" : ""), text: seen + (r.joined ? " · Joined " + new Date(r.joined).toLocaleDateString() : "") }),
+    h("div", { class: "ls", text: r.app ? "📱 App v" + r.app.ver + (r.app.dev ? " · " + r.app.dev : "") + (r.app.os ? " · " + r.app.os : "") : "📱 App version: জানা নেই (এখনো নতুন অ্যাপ খোলেনি)" }),
+    r.susp && r.susp.reason ? h("div", { class: "kv", style: "color:var(--danger)", text: "কারণ: " + r.susp.reason }) : null,
+    on ? detailsBox(r) : null,
+    h("div", { class: "acts" }, acts));
 }
 function vIds() {
   let q = "", f = "all";
   const list = h("div");
   const search = h("input", { type: "search", placeholder: "Search name, number or Gmail…", autocomplete: "off" });
-  const sel = h("select", {}, ...[["all", "All"], ["active", "Active"], ["locked", "Locked"], ["susp", "Suspended"], ["warn", "Deleting"], ["admin", "Admins"]].map(([v, t]) => h("option", { value: v, text: t })));
+  const sel = h("select", {}, ...[["all", "All"], ["active", "Active"], ["locked", "Locked"], ["susp", "Suspended"], ["warn", "Deleting"], ["admin", "Admins"], ["rep", "Reported"], ["online", "Online now"]].map(([v, t]) => h("option", { value: v, text: t })));
   const paint = () => {
     const z = x => String(x || "").toLowerCase(), qq = q.trim().toLowerCase();
-    const out = rows().filter(r => (!qq || z(r.name).includes(qq) || r.phone.includes(qq.replace(/\D/g, "") || "\u0000") || z(r.email).includes(qq)) &&
-      (f === "all" || (f === "admin" && r.admin) || (f === "locked" && r.locked) || (f === "susp" && r.susp) || (f === "warn" && r.warn) || (f === "active" && !r.admin && !r.locked && !r.susp && !r.warn)));
+    const out = rows().filter(r => (!qq || z(r.name).includes(qq) || r.phone.includes(qq.replace(/\D/g, "") || "\u0000") || z(r.email).includes(qq) || (r.app && (z(r.app.dev).includes(qq) || z(r.app.ver).includes(qq)))) &&
+      (f === "all" || (f === "admin" && r.admin) || (f === "locked" && r.locked) || (f === "susp" && r.susp) || (f === "warn" && r.warn) || (f === "rep" && r.reports) || (f === "online" && r.meta.online) || (f === "active" && !r.admin && !r.locked && !r.susp && !r.warn)));
     list.replaceChildren(...(out.length ? out.map(idCard) : [empty("No ID found.")]));
   };
   search.oninput = () => { q = search.value; paint(); };
   sel.onchange = () => { f = sel.value; paint(); };
   paint();
   return h("div", {}, h("h2", { text: "All IDs (" + Object.keys(S.phones).length + ")" }), h("p", { class: "sub", text: "Lock, Suspend বা Delete (২৪ ঘণ্টা Warning) করুন। Admin ID-তে এগুলো করা যায় না।" }),
-    h("div", { class: "bar" }, search, sel), list);
+    h("div", { class: "bar" }, search, sel, btn("↻ Refresh", "s", async () => { await loadMeta(true); toast("Updated"); })), list);
 }
 function vReq() {
   const l = reqList();
@@ -552,6 +626,28 @@ function vAdmins() {
       btn("Remove", "d", () => ask("এই Admin সরাবেন?") && run(() => remove(ref(db, "admins/" + uid)), "Admin removed"))))),
     h("div", { class: "card" }, h("h3", { text: "Add admin" }), h("label", { text: "Phone number" }), ph, h("div", { class: "acts" }, add)));
 }
+function vReports() {
+  const ids = Object.keys(S.reports || {}).filter(u => Object.keys(S.reports[u] || {}).length).sort((a, b) => Object.keys(S.reports[b]).length - Object.keys(S.reports[a]).length);
+  const phoneOf = uid => Object.keys(S.phones).find(p => S.phones[p] === uid) || "";
+  return h("div", {}, h("h2", { text: "Reports (" + ids.length + ")" }), h("p", { class: "sub", text: "ব্যবহারকারীরা চ্যাটের মেনু থেকে যাদের Report করেছে। বেশি Report পাওয়া ID আগে দেখানো হয়েছে।" }),
+    ...(ids.length ? ids.map(uid => {
+      const list = Object.values(S.reports[uid]).sort((a, b) => (b.ts || 0) - (a.ts || 0)), ph = phoneOf(uid), r = rows().find(x => x.uid === uid);
+      return h("div", { class: "card" },
+        h("div", { class: "top" }, h("div", { class: "t", text: nameByUid(uid) }), badge("⚠ " + list.length, "bad")),
+        ph ? h("div", { class: "kv", text: pretty(ph) }) : null,
+        ...list.slice(0, 8).map(x => h("div", { class: "kv muted", text: "• " + x.reason + " — " + (x.name || "?") + " · " + fmt(x.ts) })),
+        h("div", { class: "acts" },
+          r && !r.admin && !r.susp ? btn("Suspend", "d", () => ask("Suspend করবেন?") && suspendId(r)) : null,
+          r && !r.admin && !r.locked && !r.susp ? btn("Lock", "s", () => ask("এই ID Lock করবেন?") && lockId(r, true)) : null,
+          btn("Clear reports", "s", () => ask("এই ID-র সব Report মুছবেন?") && run(() => remove(ref(db, "reports/" + uid)), "Reports cleared").then(ok => ok && logAct("Clear reports", { name: nameByUid(uid), phone: ph })))));
+    }) : [empty("No reports.")]));
+}
+function vLog() {
+  const l = Object.entries(S.log || {}).map(([id, v]) => ({ id, ...v })).filter(v => v.ts).sort((a, b) => b.ts - a.ts);
+  return h("div", {}, h("h2", { text: "Activity log" }), h("p", { class: "sub", text: "কোন Admin কখন কার ওপর কী করেছে (সর্বশেষ ১৫০টি)।" }),
+    h("div", { class: "card" }, ...(l.length ? l.map(v => h("div", { class: "logrow" }, h("b", { text: v.action }), " → " + (v.target || "—"),
+      v.note ? h("small", { text: "কারণ/নোট: " + v.note }) : null, h("small", { text: v.by + " · " + fmt(v.ts) }))) : [empty("No activity yet.")])));
+}
 function vDash() {
   const c = counts(), go = t => () => { setTab(t); };
   const stat = (n, label, t, alert) => h("div", { class: "stat" + (alert && n ? " alert" : ""), onclick: go(t) }, h("b", { text: String(n) }), h("span", { text: label }));
@@ -559,19 +655,26 @@ function vDash() {
   return h("div", {}, h("h2", { text: "Dashboard" }), h("p", { class: "sub", text: "সব Admin কাজ এখান থেকে করুন — ট্যাবে ট্যাপ করলে সেই অংশে যাবেন।" }),
     h("div", { class: "grid" },
       stat(c.req, "New ID requests", "req", true), stat(c.login, "Login requests", "login", true), stat(c.fb, "Open feedback", "fb", true),
-      stat(c.ids, "Total IDs", "ids"), stat(c.locked, "Locked IDs", "ids"), stat(c.susp, "Suspended IDs", "ids"), stat(c.warn, "Deleting (24h)", "ids"), stat(c.admins, "Admins", "admins")),
+      stat(c.ids, "Total IDs", "ids"), stat(c.today, "New today", "ids"), stat(c.week, "New this week", "ids"), stat(c.online, "Online now", "ids"), stat(c.reported, "Reported IDs", "reports"), stat(c.locked, "Locked IDs", "ids"), stat(c.susp, "Suspended IDs", "ids"), stat(c.warn, "Deleting (24h)", "ids"), stat(c.admins, "Admins", "admins")),
+    (() => {
+      const m = {}; Object.values(S.appInfo || {}).forEach(a => { if (a && a.ver) m[a.ver] = (m[a.ver] || 0) + 1; });
+      const ks = Object.keys(m).sort((a, b) => m[b] - m[a]), none = Math.max(0, c.ids - Object.keys(S.appInfo || {}).length);
+      return h("div", { class: "card" }, h("h3", { text: "App versions (কে কোন ভার্সনে)" }),
+        ...(ks.length ? ks.map(k => h("div", { class: "kv", text: "v" + k + " — " + m[k] + " জন" })) : [h("div", { class: "muted", text: "এখনো কেউ নতুন অ্যাপ খোলেনি।" })]),
+        none && ks.length ? h("div", { class: "kv muted", text: "জানা নেই — " + none + " জন (পুরনো ভার্সন)" }) : null);
+    })(),
     h("div", { class: "card" }, h("h3", { text: "App update" }),
       u && u.fileId ? h("div", { class: "kv", text: "v" + (u.versionName || u.versionCode) + " (code " + u.versionCode + ") · " + fmt(u.ts) + (u.force ? " · জোর আপডেট" : "") }) : h("div", { class: "muted", text: "কোনো আপডেট publish করা নেই।" })),
     h("div", { class: "card" }, h("h3", { text: "Notice" }),
       n && n.id ? h("div", { class: "kv", text: n.title + " · " + fmt(n.ts) }) : h("div", { class: "muted", text: "কোনো নোটিশ publish করা নেই।" })));
 }
-const VIEWS = { dash: vDash, ids: vIds, req: vReq, login: vLogin, fb: vFb, upd: vUpd, notice: vNotice, fest: vFest, db: vDb, admins: vAdmins };
+const VIEWS = { dash: vDash, ids: vIds, req: vReq, login: vLogin, fb: vFb, upd: vUpd, notice: vNotice, fest: vFest, db: vDb, reports: vReports, log: vLog, admins: vAdmins };
 
 /* ---------- navigation / render ---------- */
 function setTab(t) { tab = t; dirty = false; closeSheet(); try { localStorage.setItem("nj_admin_tab", t); } catch {} render(true); $("#view").scrollTop = 0; }
 const focusInView = () => { const a = document.activeElement; return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && $("#view").contains(a)); };
 function openMore() {
-  const c = counts(), badges = { login: c.login };
+  const c = counts(), badges = { login: c.login, reports: c.reported };
   const box = $("#sheetBox");
   box.replaceChildren(h("div", { class: "grab" }), h("div", { class: "sh", text: "More" }),
     ...MORE.map(k => h("button", { class: tab === k ? "on" : "", onclick: () => setTab(k) }, ico(TAB_ICON[k]), h("span", { class: "lb", text: (TABS.find(x => x[0] === k) || [k, k])[1] }), badges[k] ? h("span", { class: "n", text: String(badges[k]) }) : null)));
@@ -580,9 +683,9 @@ function openMore() {
 $("#sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
 function render(force) {
   if (!me) return;
-  const c = counts(), badges = { req: c.req, login: c.login, fb: c.fb };
+  const c = counts(), badges = { req: c.req, login: c.login, fb: c.fb, reports: c.reported };
   const mk = (text, icon, on, n, fn) => h("button", { class: on ? "on" : "", onclick: fn }, h("span", { class: "ti" }, ico(icon), n ? h("span", { class: "n", text: n > 99 ? "99+" : String(n) }) : null), h("span", { class: "tl", text: text }));
-  $("#nav").replaceChildren(...Object.entries(BOTTOM).map(([k, label]) => mk(label, TAB_ICON[k], tab === k, badges[k], () => setTab(k))), mk("More", "grid", MORE.includes(tab), badges.login, openMore));
+  $("#nav").replaceChildren(...Object.entries(BOTTOM).map(([k, label]) => mk(label, TAB_ICON[k], tab === k, badges[k], () => setTab(k))), mk("More", "grid", MORE.includes(tab), (badges.login || 0) + (badges.reports || 0), openMore));
   $("#side-nav").replaceChildren(...TABS.map(([k, label]) => h("button", { class: tab === k ? "on" : "", onclick: () => setTab(k) }, ico(TAB_ICON[k]), h("span", { class: "lb", text: label }), badges[k] ? h("span", { class: "n", text: String(badges[k]) }) : null)));
   $("#ttl").textContent = tab === "dash" ? "Note Jar Admin" : (TABS.find(x => x[0] === tab) || ["", "Note Jar Admin"])[1];
   if (!force && focusInView()) { dirty = true; return; }      // do not rebuild while the Admin is typing
