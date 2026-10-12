@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17324f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex,nofollow">
+<title>Note Jar Admin</title>
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--text:#16202b;--muted:#667385;--line:#dbe3ec;--primary:#1f4e79;--primary-soft:#e6eef7;--danger:#c0392b;--ok:#1e8449;--warn:#b9770e;--top:#17324f;--page:#dfe6ee;--shadow:rgba(23,50,79,.14);--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1319;--card:#171e27;--text:#e6ebf1;--muted:#8f9bab;--line:#263140;--primary:#5b9bd5;--primary-soft:#1b2a3b;--danger:#e8604f;--ok:#4cc17f;--warn:#e0a63a;--top:#141b24;--page:#06090d;--shadow:rgba(0,0,0,.55)}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali",sans-serif;background:var(--page);color:var(--text);overflow:hidden}
+.hidden{display:none!important}
+button{font:inherit;color:inherit}
+svg{display:block}
+/* ---- app shell: a phone-sized column, full screen on phones ---- */
+#app{position:relative;display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:520px;margin:0 auto;background:var(--bg);overflow:hidden}
+@media(min-width:560px){#app{box-shadow:0 0 0 1px var(--line),0 10px 40px var(--shadow)}}
+header{flex:none;display:flex;align-items:center;gap:10px;padding:calc(10px + var(--sat)) 14px 10px 16px;background:var(--top);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);z-index:5}
+header .hd{flex:1;min-width:0}
+header h1{margin:0;font-size:19px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .who{display:block;font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{flex:none;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:#ffffff1f;color:#fff;border:0;border-radius:50%;cursor:pointer;padding:0}
+header button svg{width:21px;height:21px}
+main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:6px 14px 22px}
+/* ---- bottom tab bar ---- */
+.tabbar{flex:none;display:grid;grid-template-columns:repeat(5,1fr);background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + var(--sab));z-index:5}
+.tabbar button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 0;border:0;background:none;color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;min-width:0}
+.tabbar .ti{position:relative;display:flex;align-items:center;justify-content:center;width:56px;height:30px;border-radius:15px;transition:background .15s}
+.tabbar .ti svg{width:23px;height:23px}
+.tabbar .on{color:var(--primary)}.tabbar .on .ti{background:var(--primary-soft)}
+.tabbar .tl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.n{position:absolute;top:-3px;right:5px;background:var(--danger);color:#fff;border-radius:999px;font-size:10.5px;font-weight:700;padding:0 5px;min-width:17px;line-height:17px;text-align:center}
+/* ---- "More" bottom sheet ---- */
+.sbg{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:30;display:flex;align-items:flex-end;animation:fade .15s}
+.sheet{width:100%;background:var(--card);border-radius:22px 22px 0 0;padding:8px 14px calc(14px + var(--sab));animation:up .2s ease-out;box-shadow:0 -6px 24px var(--shadow)}
+.sheet .grab{width:42px;height:4px;border-radius:4px;background:var(--line);margin:4px auto 10px}
+.sheet .sh{font-weight:700;font-size:13px;color:var(--muted);margin:2px 6px 6px;text-transform:uppercase;letter-spacing:.04em}
+.sheet button{display:flex;align-items:center;gap:14px;width:100%;padding:12px 8px;border:0;background:none;border-radius:12px;text-align:left;font-size:16px;font-weight:600;cursor:pointer}
+.sheet button:active{background:var(--primary-soft)}
+.sheet button.on{color:var(--primary)}
+.sheet .ic{width:38px;height:38px;border-radius:12px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:none}
+.sheet .ic svg{width:21px;height:21px}
+.sheet .lb{flex:1}
+.sheet .n{position:static;margin:0}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+/* ---- content ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 15px;margin:11px 0;box-shadow:0 1px 3px rgba(23,50,79,.06)}
+h2{margin:12px 2px 4px;font-size:20px}
+h3{margin:0 0 8px;font-size:15px;color:var(--primary)}
+.sub{margin:0 2px 10px;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 14px;cursor:pointer;box-shadow:0 1px 3px rgba(23,50,79,.06)}
+.stat:active{background:var(--primary-soft)}
+input,textarea,select{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font:inherit;font-size:16px}
+button.b{min-height:42px;padding:9px 16px;border-radius:12px;background:var(--primary);color:#fff;border:0;font:inherit;font-weight:600;font-size:14.5px;cursor:pointer}
+button.b:active{opacity:.85}
+.bar input{min-width:0}
+#toast{position:fixed;left:50%;bottom:calc(84px + var(--sab));transform:translateX(-50%);background:#16202b;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:min(92vw,480px);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+#toast.on{opacity:1}#toast.err{background:#a93226}
+/* ---- login ---- */
+#login{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--bg),var(--primary-soft))}
+#login .card{width:100%;max-width:400px;margin:0;padding:24px 20px;border-radius:22px}
+#login .lock{width:68px;height:68px;border-radius:20px;background:var(--primary);color:#fff;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
+#login .lock svg{width:34px;height:34px}
+.muted{color:var(--muted);font-size:13px}
+label{display:block;margin:12px 0 4px;font-weight:600;font-size:13px}
+input:focus,textarea:focus,select:focus{outline:0;border-color:var(--primary)}
+input[type=checkbox]{width:auto}
+.chk{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-weight:500}
+.chk input{margin-top:4px;flex:none}
+button.b.s{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+button.b.d{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+button.b:disabled{opacity:.5;cursor:default}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.stat b{display:block;font-size:26px;line-height:1.1}
+.stat span{font-size:12.5px;color:var(--muted)}
+.stat.alert b{color:var(--danger)}
+.top{display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap}
+.top .t{flex:1 1 150px;font-weight:700;word-break:break-word}
+.badge{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--primary-soft);color:var(--primary);white-space:nowrap}
+.badge.ok{background:#1e844920;color:var(--ok)}.badge.warn{background:#b9770e22;color:var(--warn)}.badge.bad{background:#c0392b20;color:var(--danger)}
+.kv{font-size:13.5px;margin-top:3px;word-break:break-all}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+.bar input{flex:1;min-width:0}.bar select{width:auto}
+.thread{max-height:300px;overflow-y:auto;margin:10px 0;display:flex;flex-direction:column;gap:6px}
+.msg{max-width:85%;padding:7px 11px;border-radius:12px;background:var(--bg);white-space:pre-wrap;word-break:break-word;font-size:14px}
+.msg.me{align-self:flex-end;background:var(--primary-soft)}
+.msg small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.empty{text-align:center;color:var(--muted);padding:26px 0}
+.box{white-space:pre-wrap;background:var(--bg);border-radius:10px;padding:11px 12px;margin:8px 0;font-size:14px}
+.err{color:var(--danger);font-size:13px;min-height:19px;margin-top:8px}
+.fday{border-top:1px solid var(--line);padding:9px 0 3px;margin-top:8px}.fitem{margin:5px 0 6px 2px}.fitem summary{cursor:pointer;padding:3px 0}.fitem .box{margin:6px 0}.fitem a{font-size:13px;color:var(--primary)}
+
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card">
+    <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.5 3.1 8 7.5 9.5 4.4-1.5 7.5-5 7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg></div>
+    <h2 style="text-align:center">Note Jar Admin</h2>
+    <p class="sub" style="text-align:center">অ্যাপে Admin হিসেবে যে ফোন নম্বর ও পাসওয়ার্ড দিয়ে লগইন করেন সেটাই দিন।</p>
+    <label for="ph">Phone number</label><input id="ph" type="tel" placeholder="01XXXXXXXXX" autocomplete="username">
+    <label for="pw">Password</label><input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="acts"><button class="b" id="go" style="width:100%">Login</button></div>
+    <div id="lmsg" class="err"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header><div class="hd"><h1 id="ttl">Note Jar Admin</h1><span class="who" id="who"></span></div><button id="out" aria-label="Log out" title="Log out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H9"/><path d="M15 8l4 4-4 4M19 12H9"/></svg></button></header>
+  <main id="view"></main>
+  <nav id="nav" class="tabbar"></nav>
+  <div id="sheet" class="sbg hidden"><div class="sheet" id="sheetBox"></div></div>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getDatabase, ref, get, set, remove, update, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyDWKra1j3o3x4LrK1_9aGbvfxxV4qoiRgI",
+  authDomain: "mylove-a6ee9.firebaseapp.com",
+  databaseURL: "https://mylove-a6ee9-default-rtdb.firebaseio.com",
+  projectId: "mylove-a6ee9",
+  appId: "1:630327683426:web:75bfe5bda4bb1c7f35a43b"
+});
+const auth = getAuth(app), db = getDatabase(app);
+const $ = s => document.querySelector(s);
+const EMAIL_DOMAIN = "notejar.app", OWNER = "8801518411872", HOUR = 3600000, DELETE_WARN_MS = 24 * HOUR, FB_MAX = 1000, GRACE_MS = 7 * 24 * HOUR;
+
+let me = null, srvOff = 0, tab = "dash", dirty = false, unsubs = [], sweepT = 0;
+try { tab = localStorage.getItem("nj_admin_tab") || "dash"; } catch {}
+const nowTs = () => Date.now() + srvOff;
+const S = { phones: {}, emails: {}, reqs: {}, lreqs: {}, locked: {}, susp: {}, warn: {}, admins: {}, fb: {}, upd: null, notice: null, hdb: null, fest: {}, festMeta: {}, names: new Map() };
+const drafts = {};
+
+/* ---------- app-style icons + navigation ---------- */
+const ICONS = {
+  home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18 14.8c2 .7 3.2 2.4 3.5 5.2"/>',
+  userplus: '<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20c.6-3.6 3.3-5.5 6.5-5.5 1.6 0 3 .5 4.2 1.4"/><path d="M19 8v6M16 11h6"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/>',
+  message: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/>',
+  download: '<path d="M12 4v11"/><path d="M7.5 11 12 15.5 16.5 11"/><path d="M5 20h14"/>',
+  bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  database: '<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>',
+  shield: '<path d="M12 3 4.5 6v5.5c0 4.5 3.1 8 7.5 9.5 4.4-1.5 7.5-5 7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/>',
+  grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/>'
+};
+const ico = n => { const e = document.createElement("span"); e.className = "ic"; e.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[n] || "") + "</svg>"; return e; };
+const TAB_ICON = { dash: "home", ids: "users", req: "userplus", login: "key", fb: "message", upd: "download", notice: "bell", fest: "calendar", db: "database", admins: "shield" };
+const BOTTOM = { dash: "Home", ids: "IDs", req: "New ID", fb: "Feedback" }, MORE = ["login", "upd", "notice", "fest", "db", "admins"];
+const closeSheet = () => $("#sheet").classList.add("hidden");
+
+/* ---------- small helpers ---------- */
+function h(tag, a, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(a || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "text") e.textContent = v;
+    else if (k === "value") e.value = v;
+    else if (k.startsWith("on")) e[k] = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) { if (c == null || c === false) continue; e.append(c.nodeType ? c : document.createTextNode(String(c))); }
+  return e;
+}
+const btn = (label, cls, fn) => h("button", { class: "b " + (cls || ""), text: label, onclick: fn });
+const badge = (t, c) => h("span", { class: "badge " + (c || ""), text: t });
+const fmt = ts => ts ? new Date(ts).toLocaleString() : "";
+const pretty = p => p ? "+" + p : "";
+const empty = t => h("div", { class: "empty", text: t });
+let toastT = 0;
+function toast(t, bad) { const e = $("#toast"); e.textContent = t; e.className = (bad ? "err " : "") + "on"; clearTimeout(toastT); toastT = setTimeout(() => (e.className = ""), 3200); }
+async function run(fn, ok) {
+  try { await fn(); if (ok) toast(ok); return true; }
+  catch (e) { toast(e && e.message && !/PERMISSION/i.test(e.message) ? e.message : "Failed — Firebase Rules Publish করা আছে তো?", true); return false; }
+}
+const ask = t => window.confirm(t);
+function normPhone(raw) {
+  let d = String(raw).replace(/[^\d]/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (/^01\d{9}$/.test(d)) d = "88" + d;
+  return d;
+}
+const banEmailKey = em => {
+  em = String(em || "").trim().toLowerCase(); let [l, d] = em.split("@"); d = d || "";
+  if (d === "googlemail.com") d = "gmail.com";
+  if (d === "gmail.com") l = l.split("+")[0].replace(/\./g, "");
+  return (l + "@" + d).replace(/\./g, ",");
+};
+const driveId = x => { x = String(x || "").trim(); const m = x.match(/\/d\/([\w-]{10,80})/) || x.match(/[?&]id=([\w-]{10,80})/); if (m) return m[1]; return /^[\w-]{10,80}$/.test(x) ? x : ""; };
+const fbNewId = () => "m" + nowTs().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/* ---------- login ---------- */
+const say = (t, ok) => { const e = $("#lmsg"); e.textContent = t; e.style.color = ok ? "var(--ok)" : ""; };
+$("#go").onclick = async () => {
+  const phone = normPhone($("#ph").value), pass = $("#pw").value;
+  if (!phone || !pass) return say("ফোন নম্বর ও পাসওয়ার্ড দিন");
+  say("Logging in…", true);
+  const emails = [phone + "@" + EMAIL_DOMAIN];
+  try { const e = (await get(ref(db, "loginEmail/" + phone))).val(); if (e) emails.unshift(e); } catch {}
+  for (const em of emails) { try { await signInWithEmailAndPassword(auth, em, pass); return; } catch {} }
+  say("নম্বর বা পাসওয়ার্ড ভুল");
+};
+$("#pw").addEventListener("keydown", e => e.key === "Enter" && $("#go").click());
+$("#out").onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, async u => {
+  me = u;
+  if (!u) { stop(); $("#login").classList.remove("hidden"); $("#app").classList.add("hidden"); return; }
+  let isAdmin = false;
+  try { isAdmin = (await get(ref(db, "phones/" + OWNER))).val() === u.uid || (await get(ref(db, "admins/" + u.uid))).exists(); } catch {}
+  if (!isAdmin) { await signOut(auth); say("এই অ্যাকাউন্ট Admin নয়"); return; }
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
+  $("#who").textContent = u.email ? u.email.replace(/@notejar\.app$/, "") : "";
+  $("#pw").value = "";
+  start();
+});
+
+/* ---------- realtime data ---------- */
+function watch(path, key) {
+  unsubs.push(onValue(ref(db, path), s => {
+    S[key] = key === "upd" || key === "notice" || key === "hdb" ? s.val() : (s.val() || {});
+    if (key === "phones") loadNames();
+    if (key === "warn") sweep();
+    render();
+  }, e => toast(path + ": " + (e.message || "read failed"), true)));
+}
+function start() {
+  stop();
+  unsubs.push(onValue(ref(db, ".info/serverTimeOffset"), s => { srvOff = s.val() || 0; }));
+  watch("phones", "phones"); watch("loginEmail", "emails"); watch("idRequests", "reqs"); watch("loginReq", "lreqs");
+  watch("locked", "locked"); watch("suspended", "susp"); watch("deleteWarn", "warn"); watch("admins", "admins");
+  watch("feedback", "fb"); watch("appUpdate", "upd"); watch("hostServer/notice", "notice"); watch("hostServer/db", "hdb"); watch("festivals", "fest"); watch("festivalMeta", "festMeta");
+  sweepT = setInterval(sweep, 60000);
+  render();
+}
+function stop() { unsubs.forEach(f => { try { f(); } catch {} }); unsubs = []; clearInterval(sweepT); }
+
+async function loadNames() {
+  const todo = [...new Set(Object.values(S.phones))].filter(u => !S.names.has(u));
+  for (let i = 0; i < todo.length; i += 10) {
+    await Promise.all(todo.slice(i, i + 10).map(u => get(ref(db, "users/" + u + "/name")).then(s => S.names.set(u, s.val() || "")).catch(() => S.names.set(u, ""))));
+    render();
+  }
+}
+/* 24-hour warning is over -> remove the ID (same as the app does) */
+async function sweep() {
+  const now = nowTs();
+  for (const [uid, w] of Object.entries(S.warn || {})) {
+    if (!w || !w.deleteAt || w.deleteAt > now || uid === me?.uid) continue;
+    const phone = w.phone || Object.keys(S.phones).find(p => S.phones[p] === uid);
+    const up = { ["users/" + uid]: null, ["deleteWarn/" + uid]: null, ["locked/" + uid]: null, ["deletedIds/" + uid]: { ts: now, by: me.uid, phone: phone || "" } };
+    if (phone) { up["phones/" + phone] = null; up["loginEmail/" + phone] = null; }
+    try { await update(ref(db), up); } catch {}
+  }
+}
+
+/* ---------- derived lists ---------- */
+const isAdminRow = (phone, uid) => !!S.admins[uid] || phone === OWNER || uid === me?.uid;
+const rows = () => Object.entries(S.phones).map(([phone, uid]) => ({
+  phone, uid, name: S.names.get(uid) || "", email: S.emails[phone] || "",
+  locked: S.locked[uid], susp: S.susp[uid], warn: S.warn[uid], admin: isAdminRow(phone, uid)
+})).sort((a, b) => (a.name || a.phone).localeCompare(b.name || b.phone));
+const reqList = () => Object.entries(S.reqs).filter(([, v]) => v && v.phone).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+const loginList = () => { const out = []; for (const [uid, m] of Object.entries(S.lreqs || {})) for (const [did, v] of Object.entries(m || {})) if (v && v.ts) out.push({ uid, did, ...v }); return out.sort((a, b) => (b.ts || 0) - (a.ts || 0)); };
+const fbList = () => Object.entries(S.fb || {}).filter(([, v]) => v && v.msgs).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+const fbMsgs = o => Object.entries(o?.msgs || {}).map(([id, m]) => ({ id, ...m })).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+const counts = () => ({
+  ids: Object.keys(S.phones).length,
+  req: reqList().filter(q => q.status === "pending").length,
+  login: loginList().filter(q => q.status === "pending").length,
+  fb: fbList().filter(t => t.status === "open").length,
+  locked: Object.keys(S.locked).length, susp: Object.keys(S.susp).length, warn: Object.keys(S.warn).length,
+  admins: Object.keys(S.admins).filter(k => S.admins[k]).length + 1
+});
+
+/* ---------- actions (same rules as the app's Admin panel) ---------- */
+const lockId = (r, on) => run(() => on ? set(ref(db, "locked/" + r.uid), { ts: nowTs(), by: me.uid }) : remove(ref(db, "locked/" + r.uid)), on ? "ID locked" : "ID unlocked");
+const suspendId = r => run(() => {
+  const up = { ["suspended/" + r.uid]: { ts: nowTs(), by: me.uid, name: r.name || "", phone: r.phone, email: r.email || "" }, ["banPhone/" + r.phone]: r.uid };
+  if (r.email) up["banEmail/" + banEmailKey(r.email)] = r.uid;
+  return update(ref(db), up);
+}, "ID suspended");
+const unsuspendId = r => run(() => {
+  const up = { ["suspended/" + r.uid]: null, ["banPhone/" + r.phone]: null };
+  if (r.email) up["banEmail/" + banEmailKey(r.email)] = null;
+  return update(ref(db), up);
+}, "Suspension removed");
+const warnDelete = r => run(() => { const ts = nowTs(); return set(ref(db, "deleteWarn/" + r.uid), { ts, deleteAt: ts + DELETE_WARN_MS, by: me.uid, phone: r.phone }); }, "24-hour warning sent — তারপর ID মুছে যাবে");
+const cancelDelete = r => run(() => remove(ref(db, "deleteWarn/" + r.uid)), "Deletion cancelled");
+async function isBanned(phone, email) {
+  try { const [a, b] = await Promise.all([get(ref(db, "banPhone/" + phone)), get(ref(db, "banEmail/" + banEmailKey(email)))]); return a.exists() || b.exists(); } catch { return false; }
+}
+const approveReq = q => run(async () => {
+  if (await isBanned(q.phone, q.email)) throw new Error("This phone or Gmail is suspended");
+  if (S.phones[q.phone] && S.phones[q.phone] !== q.uid) throw new Error("This phone number already has an ID");
+  await update(ref(db), { ["approved/" + q.uid]: { ts: nowTs(), by: me.uid }, ["idRequests/" + q.uid + "/status"]: "approved" });
+}, "Approved — ID তৈরি হবে ব্যক্তি অ্যাপ খুললে");
+const rejectReq = q => run(() => set(ref(db, "idRequests/" + q.uid + "/status"), "rejected"), "Request rejected");
+const removeReq = q => run(() => remove(ref(db, "idRequests/" + q.uid)), "Removed");
+const loginSet = (q, st) => run(() => set(ref(db, `loginReq/${q.uid}/${q.did}/status`), st), st === "approved" ? "Approved — Gmail verification ছাড়াই লগইন হবে" : "Request rejected");
+const loginRemove = q => run(() => remove(ref(db, `loginReq/${q.uid}/${q.did}`)), "Removed");
+const fbStatus = (uid, st) => run(() => set(ref(db, "feedback/" + uid + "/status"), st), st === "closed" ? "Marked as closed" : "Reopened");
+const fbDelete = uid => run(() => remove(ref(db, "feedback/" + uid)), "Conversation deleted");
+function fbReply(uid, text) {
+  const t = String(text || "").trim().slice(0, FB_MAX);
+  if (!t) return toast("Write a reply first", true);
+  const ts = nowTs(), b = "feedback/" + uid;
+  return run(async () => { await update(ref(db), { [b + "/msgs/" + fbNewId()]: { from: "admin", text: t, ts }, [b + "/status"]: "replied", [b + "/ts"]: ts }); delete drafts[uid]; }, "Reply sent");
+}
+
+/* ---------- views ---------- */
+const TABS = [["dash", "Dashboard"], ["ids", "All IDs"], ["req", "New ID"], ["login", "Login"], ["fb", "Feedback"], ["upd", "App update"], ["notice", "Notice"], ["fest", "Festivals"], ["db", "Database"], ["admins", "Admins"]];
+
+function statusOf(r) {
+  if (r.admin) return ["Admin", "ok"];
+  if (r.susp) return ["Suspended", "bad"];
+  if (r.warn) return ["Deletes " + fmt(r.warn.deleteAt), "bad"];
+  if (r.locked) return ["Locked", "warn"];
+  return ["Active", "ok"];
+}
+function idCard(r) {
+  const st = statusOf(r), acts = [];
+  if (!r.admin) {
+    if (r.susp) acts.push(btn("Remove suspension", "s", () => ask("Suspension সরাবেন?") && unsuspendId(r)));
+    else {
+      acts.push(r.locked ? btn("Unlock", "s", () => lockId(r, false)) : btn("Lock", "s", () => ask("এই ID Lock করবেন?") && lockId(r, true)));
+      acts.push(btn("Suspend", "d", () => ask("Suspend করলে এই ফোন নম্বর ও Gmail দিয়ে আর ID খোলা যাবে না। নিশ্চিত?") && suspendId(r)));
+      acts.push(r.warn ? btn("Undo delete", "s", () => cancelDelete(r)) : btn("Delete", "d", () => ask("২৪ ঘণ্টার Warning দিয়ে এই ID মুছে ফেলবেন?") && warnDelete(r)));
+    }
+  }
+  return h("div", { class: "card" },
+    h("div", { class: "top" }, h("div", { class: "t", text: r.name || "…" }), badge(st[0], st[1])),
+    h("div", { class: "kv", text: pretty(r.phone) }), r.email ? h("div", { class: "kv muted", text: r.email }) : null,
+    acts.length ? h("div", { class: "acts" }, acts) : null);
+}
+function vIds() {
+  let q = "", f = "all";
+  const list = h("div");
+  const search = h("input", { type: "search", placeholder: "Search name, number or Gmail…", autocomplete: "off" });
+  const sel = h("select", {}, ...[["all", "All"], ["active", "Active"], ["locked", "Locked"], ["susp", "Suspended"], ["warn", "Deleting"], ["admin", "Admins"]].map(([v, t]) => h("option", { value: v, text: t })));
+  const paint = () => {
+    const z = x => String(x || "").toLowerCase(), qq = q.trim().toLowerCase();
+    const out = rows().filter(r => (!qq || z(r.name).includes(qq) || r.phone.includes(qq.replace(/\D/g, "") || "\u0000") || z(r.email).includes(qq)) &&
+      (f === "all" || (f === "admin" && r.admin) || (f === "locked" && r.locked) || (f === "susp" && r.susp) || (f === "warn" && r.warn) || (f === "active" && !r.admin && !r.locked && !r.susp && !r.warn)));
+    list.replaceChildren(...(out.length ? out.map(idCard) : [empty("No ID found.")]));
+  };
+  search.oninput = () => { q = search.value; paint(); };
+  sel.onchange = () => { f = sel.value; paint(); };
+  paint();
+  return h("div", {}, h("h2", { text: "All IDs (" + Object.keys(S.phones).length + ")" }), h("p", { class: "sub", text: "Lock, Suspend বা Delete (২৪ ঘণ্টা Warning) করুন। Admin ID-তে এগুলো করা যায় না।" }),
+    h("div", { class: "bar" }, search, sel), list);
+}
+function vReq() {
+  const l = reqList();
+  return h("div", {}, h("h2", { text: "New ID requests" }), h("p", { class: "sub", text: "Approve করলে ব্যক্তি অ্যাপ খুললে তার ID তৈরি হয়।" }),
+    ...(l.length ? l.map(q => {
+      const pend = q.status === "pending";
+      return h("div", { class: "card" },
+        h("div", { class: "top" }, h("div", { class: "t", text: q.name }), badge(pend ? "New" : q.status === "approved" ? "Approved" : "Rejected", pend ? "warn" : q.status === "approved" ? "ok" : "bad")),
+        h("div", { class: "kv", text: pretty(q.phone) }), h("div", { class: "kv muted", text: q.email }),
+        h("div", { class: "muted", text: fmt(q.ts) + (q.status === "approved" ? " · ব্যক্তির অ্যাপ খোলার অপেক্ষায়" : "") }),
+        h("div", { class: "acts" }, pend ? [btn("Approve", "", () => approveReq(q)), btn("Reject", "d", () => ask("Reject করবেন?") && rejectReq(q))] : [btn("Remove", "s", () => removeReq(q))]));
+    }) : [empty("No new ID requests.")]));
+}
+function vLogin() {
+  const l = loginList();
+  return h("div", {}, h("h2", { text: "Login requests" }), h("p", { class: "sub", text: "নতুন ফোন বা Gmail verify না হওয়া ব্যক্তি Admin-এর কাছে লগইনের অনুমতি চায়।" }),
+    ...(l.length ? l.map(q => {
+      const pend = q.status === "pending";
+      return h("div", { class: "card" },
+        h("div", { class: "top" }, h("div", { class: "t", text: q.uname || pretty(q.phone || "") || "…" }), badge(pend ? "New" : q.status === "approved" ? "Approved" : "Rejected", pend ? "warn" : q.status === "approved" ? "ok" : "bad")),
+        q.phone ? h("div", { class: "kv", text: pretty(q.phone) }) : null, q.email ? h("div", { class: "kv muted", text: q.email }) : null,
+        h("div", { class: "kv muted", text: "📱 " + (q.name || "Phone") + (q.kind === "email" ? " · Gmail not verified" : " · new device") }),
+        h("div", { class: "muted", text: fmt(q.ts) + (q.status === "approved" ? " · ব্যক্তির অ্যাপ খোলার অপেক্ষায়" : "") }),
+        h("div", { class: "acts" }, pend ? [btn("Approve", "", () => loginSet(q, "approved")), btn("Reject", "d", () => ask("Reject করবেন?") && loginSet(q, "denied"))] : [btn("Remove", "s", () => loginRemove(q))]));
+    }) : [empty("No login requests.")]));
+}
+function vFb() {
+  const l = fbList();
+  return h("div", {}, h("h2", { text: "Feedback / Complaints" }), h("p", { class: "sub", text: "উত্তর দিলে ব্যবহারকারীর অ্যাপে \"Admin\" নামে Inbox-এ দেখা যায়। ব্যবহারকারী শুধু \"Admin\" নাম দেখে।" }),
+    ...(l.length ? l.map(t => {
+      const st = t.status === "open" ? ["New", "warn"] : t.status === "closed" ? ["Closed", "bad"] : ["Replied", "ok"];
+      const th = h("div", { class: "thread" }, fbMsgs(t).map(m => h("div", { class: "msg" + (m.from === "admin" ? " me" : "") }, m.text, h("small", { text: (m.from === "admin" ? "Admin · " : "") + fmt(m.ts) }))));
+      const ta = h("textarea", { rows: "2", maxlength: String(FB_MAX), placeholder: "Write a reply…", value: drafts[t.uid] || "" });
+      ta.oninput = () => { drafts[t.uid] = ta.value; };
+      setTimeout(() => { th.scrollTop = th.scrollHeight; }, 0);
+      return h("div", { class: "card" },
+        h("div", { class: "top" }, h("div", { class: "t", text: t.name || "…" }), badge(st[0], st[1])),
+        t.phone ? h("div", { class: "kv", text: pretty(t.phone) }) : null, th, ta,
+        h("div", { class: "acts" }, btn("Reply", "", () => fbReply(t.uid, ta.value)),
+          t.status === "closed" ? btn("Reopen", "s", () => fbStatus(t.uid, "open")) : btn("Close", "s", () => fbStatus(t.uid, "closed")),
+          btn("Delete", "d", () => ask("পুরো কথোপকথন মুছবেন?") && fbDelete(t.uid))));
+    }) : [empty("No feedback or complaints yet.")]));
+}
+function vUpd() {
+  const u = S.upd, has = !!(u && u.fileId);
+  const vc = h("input", { type: "number", inputmode: "numeric", placeholder: "versionCode (build.gradle-এর সংখ্যা)", value: has ? u.versionCode : "" });
+  const vn = h("input", { placeholder: "Version name (যেমন 11.7)", value: has ? (u.versionName || "") : "" });
+  const link = h("input", { placeholder: "Google Drive share link (Anyone with the link)", autocomplete: "off", value: has ? "https://drive.google.com/file/d/" + u.fileId + "/view" : "" });
+  const notes = h("textarea", { rows: "3", placeholder: "কী নতুন (ঐচ্ছিক)", value: has ? (u.notes || "") : "" });
+  const force = h("input", { type: "checkbox" }); force.checked = !!(has && u.force);
+  const cur = has ? h("div", { class: "box" },
+    "Published: v" + (u.versionName || u.versionCode) + "  (versionCode " + u.versionCode + ")\n" + fmt(u.ts) +
+    (u.force ? "\nজোর আপডেট: ব্যবহারকারী " + fmt((u.ts || 0) + GRACE_MS) + " পর্যন্ত Later চেপে এড়াতে পারবে, তারপর অ্যাপ আটকে যাবে।" : "\nসাধারণ আপডেট (এড়ানো যায়)।") +
+    (u.notes ? "\n\n" + u.notes : "")) : h("p", { class: "muted", text: "কোনো আপডেট publish করা নেই।" });
+  const pub = btn("Publish update", "", async () => {
+    const code = Math.floor(+vc.value), id = driveId(link.value);
+    if (!(code > 0)) return toast("versionCode দিন", true);
+    if (!id) return toast("সঠিক Google Drive লিংক দিন", true);
+    if (has && code < +u.versionCode && !ask("এই versionCode (" + code + ") বর্তমান publish করা (" + u.versionCode + ") এর চেয়ে ছোট। তবুও publish করবেন?")) return;
+    pub.disabled = true;
+    await run(() => set(ref(db, "appUpdate"), { versionCode: code, versionName: vn.value.trim().slice(0, 20), fileId: id, notes: notes.value.trim().slice(0, 1000), force: !!force.checked, ts: nowTs() }), "Update published — সবার ফোনে খবর যাবে");
+    pub.disabled = false;
+  });
+  return h("div", {}, h("h2", { text: "App update" }),
+    h("p", { class: "sub", text: "APK Google Drive-এ আপলোড করে Share → \"Anyone with the link\" করুন, তারপর লিংক পেস্ট করুন। versionCode অবশ্যই APK-এর build.gradle-এর সংখ্যার সমান হতে হবে; যাদের ফোনে এর চেয়ে ছোট ভার্সন আছে শুধু তারাই আপডেট পাবে।" }),
+    h("div", { class: "card" }, h("h3", { text: "Current" }), cur, has ? btn("Remove update", "d", () => ask("Update সরিয়ে ফেলবেন?") && run(() => remove(ref(db, "appUpdate")), "Update removed")) : null),
+    h("div", { class: "card" }, h("h3", { text: "Publish new" }),
+      h("label", { text: "versionCode" }), vc, h("label", { text: "Version name" }), vn, h("label", { text: "Drive link" }), link, h("label", { text: "Notes" }), notes,
+      h("label", { class: "chk" }, force, h("span", { text: "জোর আপডেট: অ্যাপ খুললেই আপডেট চাইবে, ৭ দিন পর্যন্ত এড়ানো যাবে, তারপর আপডেট ছাড়া অ্যাপ চলবে না" })),
+      h("div", { class: "acts" }, pub)));
+}
+function vNotice() {
+  const n = S.notice, has = !!(n && n.id);
+  const title = h("input", { maxlength: "150", placeholder: "Notice title", value: has ? n.title : "" });
+  const desc = h("textarea", { rows: "6", placeholder: "Notice description", value: has ? (n.desc || "") : "" });
+  const pub = btn("Publish & notify everyone", "", async () => {
+    const t = title.value.trim(); if (!t) return toast("Title দিন", true);
+    pub.disabled = true;
+    await run(() => set(ref(db, "hostServer/notice"), { id: String(Date.now()), title: t, desc: desc.value.trim(), ts: Date.now(), by: me.uid }), "Published — সবার ফোনে নোটিফিকেশন যাচ্ছে");
+    pub.disabled = false;
+  });
+  return h("div", {}, h("h2", { text: "Notice" }),
+    h("div", { class: "card" }, h("h3", { text: "Current notice" }),
+      has ? h("div", { class: "box" }, n.title + "\n\n" + (n.desc || "") + "\n\n(Published " + fmt(n.ts) + ")") : h("p", { class: "muted", text: "কোনো নোটিশ publish করা নেই।" }),
+      has ? btn("Remove notice", "d", () => ask("Current notice মুছবেন?") && run(() => remove(ref(db, "hostServer/notice")), "Removed")) : null),
+    h("div", { class: "card" }, h("h3", { text: has ? "Replace with a new notice" : "Publish a notice" }), h("label", { text: "Title" }), title, h("label", { text: "Description" }), desc, h("div", { class: "acts" }, pub)));
+}
+function vFest() {
+  const dates = Object.keys(S.fest || {}).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && S.fest[d] && typeof S.fest[d] === "object").sort();
+  const today = new Date(nowTs() + 6 * 36e5).toISOString().slice(0, 10);           // Bangladesh date
+  const done = (S.festMeta && S.festMeta.done) || {};
+  const dLabel = d => { try { return new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }); } catch { return d; } };
+  const mLabel = m => { try { return new Date(m + "-01T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }); } catch { return m; } };
+  const months = [...new Set([...dates.map(d => d.slice(0, 7)), ...Object.keys(done)])].sort();
+  let total = 0; dates.forEach(d => { total += Object.keys(S.fest[d]).length; });
+  const out = [h("h2", { text: "Festivals / Pujas" }),
+    h("p", { class: "sub", text: "অ্যাপ (Admin ফোন) banglacalendartoday.in থেকে যে সনাতনী উৎসব/পূজার তথ্য Firebase-এ লোড করেছে সেগুলো এখানে দেখা যায়। মোট " + total + " টি, " + dates.length + " দিনে।" })];
+  if (!months.length) out.push(empty("এখনো কোনো উৎসব লোড হয়নি। Admin ফোনে অ্যাপ খুললে লোড হবে।"));
+  for (const m of months) {
+    const ds = dates.filter(d => d.startsWith(m)), n = ds.reduce((a, d) => a + Object.keys(S.fest[d]).length, 0);
+    out.push(h("div", { class: "card" },
+      h("div", { class: "top" }, h("div", { class: "t", text: mLabel(m) + " · " + n + " festival" + (n === 1 ? "" : "s") }),
+        done[m] ? badge("Loaded " + fmt(done[m]), "ok") : badge("Built-in list (site not read yet)", "warn")),
+      ds.length ? null : h("div", { class: "muted", text: "এই মাসে কোনো সনাতনী উৎসব পাওয়া যায়নি।" }),
+      ...ds.map(d => h("div", { class: "fday" },
+        h("div", { class: "top" }, h("div", { class: "t", text: dLabel(d) }), d === today ? badge("Today", "ok") : d < today ? badge("Past", "") : null),
+        ...Object.entries(S.fest[d]).filter(([, f]) => f && f.name).map(([k, f]) => h("details", { class: "fitem" },
+          h("summary", {}, h("b", { text: f.bn || f.name }), f.bn ? h("span", { class: "muted", text: "  " + f.name }) : null),
+          f.desc ? h("div", { class: "box", text: f.desc }) : h("div", { class: "muted", text: "বিবরণ লোড হয়নি।" }),
+          f.url ? h("a", { href: f.url, target: "_blank", rel: "noopener", text: "banglacalendartoday.in ↗" }) : null))))));
+  }
+  return h("div", {}, ...out);
+}
+function vDb() {
+  const d = S.hdb || {};
+  const desc = h("textarea", { rows: "7", maxlength: "3000", value: d.desc || "" });
+  const contact = h("textarea", { rows: "3", maxlength: "1000", value: d.contact || "" });
+  const save = btn("Save", "", async () => { save.disabled = true; await run(() => set(ref(db, "hostServer/db"), { desc: desc.value.trim(), contact: contact.value.trim(), ts: Date.now() }), "Saved"); save.disabled = false; });
+  return h("div", {}, h("h2", { text: "Database description & contact" }), h("p", { class: "sub", text: "অ্যাপের Host Server-এ সবাই এটা দেখে।" }),
+    h("div", { class: "card" }, h("label", { text: "Database description" }), desc, h("label", { text: "Contact" }), contact, h("div", { class: "acts" }, save)));
+}
+function vAdmins() {
+  const ids = Object.keys(S.admins).filter(k => S.admins[k]);
+  const ph = h("input", { type: "tel", placeholder: "01XXXXXXXXX" });
+  const nameOf = uid => { const p = Object.keys(S.phones).find(x => S.phones[x] === uid); return (S.names.get(uid) || "") + (p ? " — " + pretty(p) : " — " + uid); };
+  const add = btn("Add admin", "", async () => {
+    const phone = normPhone(ph.value); if (!phone) return toast("নম্বর দিন", true);
+    const uid = S.phones[phone] || (await get(ref(db, "phones/" + phone)).then(s => s.val()).catch(() => null));
+    if (!uid) return toast("এই নম্বরে অ্যাপে অ্যাকাউন্ট নেই", true);
+    if (await run(() => set(ref(db, "admins/" + uid), true), "Admin added")) ph.value = "";
+  });
+  return h("div", {}, h("h2", { text: "Admins" }), h("p", { class: "sub", text: "যাদের যোগ করবেন তারা অ্যাপ ও এই সাইট দুই জায়গা থেকেই Admin কাজ করতে পারবে। আগে অ্যাপে অ্যাকাউন্ট থাকতে হবে।" }),
+    h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "t", text: "Owner — " + pretty(OWNER) }), badge("Owner", "ok"))),
+    ...ids.map(uid => h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "t", text: nameOf(uid) }),
+      btn("Remove", "d", () => ask("এই Admin সরাবেন?") && run(() => remove(ref(db, "admins/" + uid)), "Admin removed"))))),
+    h("div", { class: "card" }, h("h3", { text: "Add admin" }), h("label", { text: "Phone number" }), ph, h("div", { class: "acts" }, add)));
+}
+function vDash() {
+  const c = counts(), go = t => () => { setTab(t); };
+  const stat = (n, label, t, alert) => h("div", { class: "stat" + (alert && n ? " alert" : ""), onclick: go(t) }, h("b", { text: String(n) }), h("span", { text: label }));
+  const u = S.upd, n = S.notice;
+  return h("div", {}, h("h2", { text: "Dashboard" }), h("p", { class: "sub", text: "সব Admin কাজ এখান থেকে করুন — ট্যাবে ট্যাপ করলে সেই অংশে যাবেন।" }),
+    h("div", { class: "grid" },
+      stat(c.req, "New ID requests", "req", true), stat(c.login, "Login requests", "login", true), stat(c.fb, "Open feedback", "fb", true),
+      stat(c.ids, "Total IDs", "ids"), stat(c.locked, "Locked IDs", "ids"), stat(c.susp, "Suspended IDs", "ids"), stat(c.warn, "Deleting (24h)", "ids"), stat(c.admins, "Admins", "admins")),
+    h("div", { class: "card" }, h("h3", { text: "App update" }),
+      u && u.fileId ? h("div", { class: "kv", text: "v" + (u.versionName || u.versionCode) + " (code " + u.versionCode + ") · " + fmt(u.ts) + (u.force ? " · জোর আপডেট" : "") }) : h("div", { class: "muted", text: "কোনো আপডেট publish করা নেই।" })),
+    h("div", { class: "card" }, h("h3", { text: "Notice" }),
+      n && n.id ? h("div", { class: "kv", text: n.title + " · " + fmt(n.ts) }) : h("div", { class: "muted", text: "কোনো নোটিশ publish করা নেই।" })));
+}
+const VIEWS = { dash: vDash, ids: vIds, req: vReq, login: vLogin, fb: vFb, upd: vUpd, notice: vNotice, fest: vFest, db: vDb, admins: vAdmins };
+
+/* ---------- navigation / render ---------- */
+function setTab(t) { tab = t; dirty = false; closeSheet(); try { localStorage.setItem("nj_admin_tab", t); } catch {} render(true); $("#view").scrollTop = 0; }
+const focusInView = () => { const a = document.activeElement; return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && $("#view").contains(a)); };
+function openMore() {
+  const c = counts(), badges = { login: c.login };
+  const box = $("#sheetBox");
+  box.replaceChildren(h("div", { class: "grab" }), h("div", { class: "sh", text: "More" }),
+    ...MORE.map(k => h("button", { class: tab === k ? "on" : "", onclick: () => setTab(k) }, ico(TAB_ICON[k]), h("span", { class: "lb", text: (TABS.find(x => x[0] === k) || [k, k])[1] }), badges[k] ? h("span", { class: "n", text: String(badges[k]) }) : null)));
+  $("#sheet").classList.remove("hidden");
+}
+$("#sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
+function render(force) {
+  if (!me) return;
+  const c = counts(), badges = { req: c.req, login: c.login, fb: c.fb };
+  const mk = (text, icon, on, n, fn) => h("button", { class: on ? "on" : "", onclick: fn }, h("span", { class: "ti" }, ico(icon), n ? h("span", { class: "n", text: n > 99 ? "99+" : String(n) }) : null), h("span", { class: "tl", text: text }));
+  $("#nav").replaceChildren(...Object.entries(BOTTOM).map(([k, label]) => mk(label, TAB_ICON[k], tab === k, badges[k], () => setTab(k))), mk("More", "grid", MORE.includes(tab), badges.login, openMore));
+  $("#ttl").textContent = tab === "dash" ? "Note Jar Admin" : (TABS.find(x => x[0] === tab) || ["", "Note Jar Admin"])[1];
+  if (!force && focusInView()) { dirty = true; return; }      // do not rebuild while the Admin is typing
+  dirty = false;
+  const view = $("#view");
+  view.replaceChildren((VIEWS[tab] || vDash)());
+}
+$("#view").addEventListener("focusout", () => setTimeout(() => { if (dirty && !focusInView()) render(); }, 80));
+document.title = "Note Jar Admin";
+</script>
+</body>
+</html>
