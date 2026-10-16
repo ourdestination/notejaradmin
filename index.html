@@ -576,6 +576,21 @@ function eveBtn(d) {
   if (eveAt(d) <= nowTs()) return on ? badge("6 PM notice sent", "ok") : badge("Passed", "");
   return h("button", { class: "b sm" + (on ? "" : " s"), onclick: () => toggleEve(d, on) }, on ? "6 PM notice: ON" : "Notify 6 PM before");
 }
+// v137: one tap = switch the "6 PM the day before" notification ON (or OFF) for every upcoming festival day
+const festDays = () => Object.keys(S.fest || {}).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && S.fest[d] && typeof S.fest[d] === "object" && Object.values(S.fest[d]).some(f => f && f.name));
+async function eveAll(on) {
+  const todo = festDays().filter(d => eveAt(d) > nowTs() && (on ? !(S.eve[d] && S.eve[d].on) : !!(S.eve[d] && S.eve[d].on)));
+  if (!todo.length) return toast(on ? "সব আগামী উৎসবের নোটিফিকেশন আগে থেকেই ON আছে" : "কোনো আগামী উৎসবের নোটিফিকেশন ON নেই", true);
+  if (!ask(on ? todo.length + " টি আগামী উৎসবের আগের দিন সন্ধ্যা ৬টার নোটিফিকেশন ON করবেন? (সব অ্যাপে যাবে)" : todo.length + " টি আগামী উৎসবের নোটিফিকেশন বাতিল করবেন?")) return;
+  const up = {}; todo.forEach(d => { up["festivalEve/" + d] = on ? { on: true, ts: nowTs(), by: me.uid } : null; });
+  await run(() => update(ref(db), up), on ? todo.length + " টি উৎসবের 6 PM নোটিফিকেশন ON হয়েছে" : todo.length + " টি নোটিফিকেশন বাতিল হয়েছে");
+}
+function eveAllBar() {
+  const up = festDays().filter(d => eveAt(d) > nowTs()), onN = up.filter(d => S.eve[d] && S.eve[d].on).length;
+  if (!up.length) return null;
+  return h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "t", text: "আগামী " + up.length + " টি উৎসবের দিন · " + onN + " টিতে ON" })),
+    h("div", { class: "acts" }, btn("🔔 সবগুলো ON (আগের দিন ৬টা)", "", () => eveAll(true)), btn("সব OFF", "d", () => eveAll(false))));
+}
 function vFest() {
   const dates = Object.keys(S.fest || {}).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && S.fest[d] && typeof S.fest[d] === "object").sort();
   const today = new Date(nowTs() + 6 * 36e5).toISOString().slice(0, 10);           // Bangladesh date
@@ -587,6 +602,7 @@ function vFest() {
   const out = [h("h2", { text: "Festivals / Pujas" }),
     h("p", { class: "sub", text: "অ্যাপ (Admin ফোন) banglacalendartoday.in থেকে যে সনাতনী উৎসব/পূজার তথ্য Firebase-এ লোড করেছে সেগুলো এখানে দেখা যায়। মোট " + total + " টি, " + dates.length + " দিনে। প্রতিটি দিনের ডানের বাটন চাপলে আগের দিন সন্ধ্যা ৬:০০টায় সব অ্যাপে নোটিফিকেশন যাবে।" })];
   if (!months.length) out.push(empty("এখনো কোনো উৎসব লোড হয়নি। Admin ফোনে অ্যাপ খুললে লোড হবে।"));
+  else { const bar = eveAllBar(); if (bar) out.push(bar); }
   for (const m of months) {
     const ds = dates.filter(d => d.startsWith(m)), n = ds.reduce((a, d) => a + Object.keys(S.fest[d]).length, 0);
     out.push(h("div", { class: "card" },
