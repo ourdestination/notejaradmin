@@ -591,6 +591,34 @@ function eveAllBar() {
   return h("div", { class: "card" }, h("div", { class: "top" }, h("div", { class: "t", text: "আগামী " + up.length + " টি উৎসবের দিন · " + onN + " টিতে ON" })),
     h("div", { class: "acts" }, btn("🔔 সবগুলো ON (আগের দিন ৬টা)", "", () => eveAll(true)), btn("সব OFF", "d", () => eveAll(false))));
 }
+// v138: delete a festival that is not needed / add one by hand
+const festForm = { date: "", bn: "", en: "", desc: "", url: "" };          // kept between re-draws so typing is not lost
+async function festDelete(d, k, f) {
+  if (!ask("\"" + (f.bn || f.name) + "\" (" + d + ") মুছে ফেলবেন? সব অ্যাপ থেকে এটা সরে যাবে।")) return;
+  const up = {}; up["festivals/" + d + "/" + k] = null;
+  if (!f.manual) up["festivalDel/" + d + "/" + k] = true;                    // remembered, so the app never loads it from the website again
+  const left = Object.entries(S.fest[d] || {}).filter(([kk, ff]) => kk !== k && ff && ff.name).length;
+  if (!left) up["festivalEve/" + d] = null;                                  // no festival left that day -> drop its 6 PM notice too
+  await run(() => update(ref(db), up), "মুছে ফেলা হয়েছে");
+}
+async function festAdd() {
+  const date = festForm.date.trim(), bn = festForm.bn.trim(), en = festForm.en.trim(), desc = festForm.desc.trim(), url = festForm.url.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date + "T00:00:00Z"))) return toast("তারিখ দিন", true);
+  if (!bn && !en) return toast("উৎসবের নাম দিন (বাংলা বা English)", true);
+  if (url && !/^https:\/\//i.test(url)) return toast("লিংক https:// দিয়ে শুরু হতে হবে", true);
+  const key = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const item = { name: en || bn, bn: bn || "", desc, src: "manual", manual: true, ts: nowTs() };
+  if (url) item.url = url;
+  if (await run(() => set(ref(db, "festivals/" + date + "/" + key), item), "উৎসব যোগ হয়েছে")) { festForm.bn = festForm.en = festForm.desc = festForm.url = ""; render(true); }
+}
+function festAddCard() {
+  const f = (label, key, attrs) => [h("label", { text: label }), h(attrs.rows ? "textarea" : "input", { ...attrs, value: festForm[key], oninput: e => { festForm[key] = e.target.value; } })];
+  return h("div", { class: "card" }, h("h3", { text: "নতুন উৎসব যোগ করুন (manually)" }),
+    ...f("তারিখ", "date", { type: "date" }), ...f("নাম (বাংলা)", "bn", { type: "text", maxlength: "60", placeholder: "যেমন: সরস্বতী পূজা" }),
+    ...f("Name (English, ঐচ্ছিক)", "en", { type: "text", maxlength: "80" }), ...f("বিবরণ (বাংলা, ঐচ্ছিক)", "desc", { rows: "4", maxlength: "900" }),
+    ...f("লিংক (ঐচ্ছিক, https://…)", "url", { type: "url", maxlength: "300" }),
+    h("div", { class: "acts" }, btn("➕ যোগ করুন", "", festAdd)));
+}
 function vFest() {
   const dates = Object.keys(S.fest || {}).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && S.fest[d] && typeof S.fest[d] === "object").sort();
   const today = new Date(nowTs() + 6 * 36e5).toISOString().slice(0, 10);           // Bangladesh date
@@ -601,6 +629,7 @@ function vFest() {
   let total = 0; dates.forEach(d => { total += Object.keys(S.fest[d]).length; });
   const out = [h("h2", { text: "Festivals / Pujas" }),
     h("p", { class: "sub", text: "অ্যাপ (Admin ফোন) banglacalendartoday.in থেকে যে সনাতনী উৎসব/পূজার তথ্য Firebase-এ লোড করেছে সেগুলো এখানে দেখা যায়। মোট " + total + " টি, " + dates.length + " দিনে। প্রতিটি দিনের ডানের বাটন চাপলে আগের দিন সন্ধ্যা ৬:০০টায় সব অ্যাপে নোটিফিকেশন যাবে।" })];
+  out.push(festAddCard());
   if (!months.length) out.push(empty("এখনো কোনো উৎসব লোড হয়নি। Admin ফোনে অ্যাপ খুললে লোড হবে।"));
   else { const bar = eveAllBar(); if (bar) out.push(bar); }
   for (const m of months) {
@@ -612,9 +641,10 @@ function vFest() {
       ...ds.map(d => h("div", { class: "fday" },
         h("div", { class: "top" }, h("div", { class: "t", text: dLabel(d) }), d === today ? badge("Today", "ok") : d < today ? badge("Past", "") : null, eveBtn(d)),
         ...Object.entries(S.fest[d]).filter(([, f]) => f && f.name).map(([k, f]) => h("details", { class: "fitem" },
-          h("summary", {}, h("b", { text: f.bn || f.name }), f.bn ? h("span", { class: "muted", text: "  " + f.name }) : null),
+          h("summary", {}, h("b", { text: f.bn || f.name }), f.bn && f.bn !== f.name ? h("span", { class: "muted", text: "  " + f.name }) : null, f.manual ? badge("Manual", "ok") : null),
           f.desc ? h("div", { class: "box", text: f.desc }) : h("div", { class: "muted", text: "বিবরণ লোড হয়নি।" }),
-          f.url ? h("a", { href: f.url, target: "_blank", rel: "noopener", text: "banglacalendartoday.in ↗" }) : null))))));
+          f.url ? h("a", { href: f.url, target: "_blank", rel: "noopener", text: f.manual ? "লিংক ↗" : "banglacalendartoday.in ↗" }) : null,
+          h("div", { class: "acts" }, btn("🗑 মুছুন", "d sm", () => festDelete(d, k, f)))))))));
   }
   return h("div", {}, ...out);
 }
