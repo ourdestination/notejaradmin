@@ -142,6 +142,19 @@ button.b.sm{min-height:34px;padding:5px 12px;font-size:13px;border-radius:10px}
   .sbg{display:none}
 }
 .pwrap{position:relative}.pwrap input{padding-right:46px}.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:0;background:none;color:var(--muted);cursor:pointer;border-radius:50%}.eye:active{background:var(--primary-soft)}.eye svg{width:21px;height:21px}
+
+/* v146: gift cards */
+.gface{position:relative;overflow:hidden;border-radius:18px;padding:18px 14px;color:#fff;text-align:center;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.gface .gimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.gface .gimg~*{position:relative;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.gface .ge{font-size:44px;line-height:1}
+.gface .gt{font-size:19px;font-weight:700;word-break:break-word}
+.gface .gw{font-size:14px;opacity:.96;white-space:pre-wrap;word-break:break-word}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.ggrid .card{margin:0}
+.gcols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input[type=color]{height:44px;padding:3px}
+.gprev{margin:8px 0 4px;max-width:340px}
 </style>
 </head>
 <body>
@@ -188,7 +201,7 @@ const EMAIL_DOMAIN = "notejar.app", OWNER = "8801518411872", HOUR = 3600000, DEL
 let metaT = 0, me = null, srvOff = 0, tab = "dash", dirty = false, unsubs = [], sweepT = 0;
 try { tab = localStorage.getItem("nj_admin_tab") || "dash"; } catch {}
 const nowTs = () => Date.now() + srvOff;
-const S = { phones: {}, emails: {}, reqs: {}, lreqs: {}, locked: {}, susp: {}, warn: {}, admins: {}, fb: {}, upd: null, notice: null, hdb: null, fest: {}, festMeta: {}, eve: {}, names: new Map(), approved: {}, reports: {}, log: {}, appInfo: {}, fl: {}, meta: new Map() };
+const S = { phones: {}, emails: {}, reqs: {}, lreqs: {}, locked: {}, susp: {}, warn: {}, admins: {}, fb: {}, upd: null, notice: null, hdb: null, gifts: {}, fest: {}, festMeta: {}, eve: {}, names: new Map(), approved: {}, reports: {}, log: {}, appInfo: {}, fl: {}, meta: new Map() };
 const drafts = {};
 
 /* ---------- app-style icons + navigation ---------- */
@@ -205,11 +218,12 @@ const ICONS = {
   list: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
   database: '<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>',
   shield: '<path d="M12 3 4.5 6v5.5c0 4.5 3.1 8 7.5 9.5 4.4-1.5 7.5-5 7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/>',
+  gift: '<rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M12 8.5V20"/><path d="M5 12.5V20h14v-7.5"/><path d="M12 8.5C10 8.5 8 7.6 8 6a2 2 0 0 1 4 0"/><path d="M12 8.5c2 0 4-.9 4-2.5a2 2 0 0 0-4 0"/>',
   grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/>'
 };
 const ico = n => { const e = document.createElement("span"); e.className = "ic"; e.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[n] || "") + "</svg>"; return e; };
-const TAB_ICON = { dash: "home", ids: "users", req: "userplus", login: "key", fb: "message", upd: "download", notice: "bell", fest: "calendar", db: "database", reports: "flag", log: "list", admins: "shield" };
-const BOTTOM = { dash: "Home", ids: "IDs", req: "New ID", fb: "Feedback" }, MORE = ["login", "reports", "log", "upd", "notice", "fest", "db", "admins"];
+const TAB_ICON = { dash: "home", ids: "users", req: "userplus", login: "key", fb: "message", upd: "download", notice: "bell", fest: "calendar", gift: "gift", db: "database", reports: "flag", log: "list", admins: "shield" };
+const BOTTOM = { dash: "Home", ids: "IDs", req: "New ID", fb: "Feedback" }, MORE = ["login", "reports", "log", "upd", "notice", "fest", "gift", "db", "admins"];
 const closeSheet = () => $("#sheet").classList.add("hidden");
 
 /* ---------- small helpers ---------- */
@@ -297,7 +311,7 @@ function start() {
   watch("approved", "approved"); watch("reports", "reports"); watch("appInfo", "appInfo"); watch("forceLogout", "fl");
   unsubs.push(onValue(query(ref(db, "adminLog"), orderByKey(), limitToLast(150)), s => { S.log = s.val() || {}; render(); }, () => {}));
   metaT = setInterval(() => loadMeta(true), 120000);
-  watch("feedback", "fb"); watch("appUpdate", "upd"); watch("hostServer/notice", "notice"); watch("hostServer/db", "hdb"); watch("festivals", "fest"); watch("festivalMeta", "festMeta"); watch("festivalEve", "eve");
+  watch("feedback", "fb"); watch("appUpdate", "upd"); watch("hostServer/notice", "notice"); watch("hostServer/db", "hdb"); watch("festivals", "fest"); watch("festivalMeta", "festMeta"); watch("festivalEve", "eve"); watch("giftCards", "gifts");
   sweepT = setInterval(sweep, 60000);
   render();
 }
@@ -407,7 +421,7 @@ function fbReply(uid, text) {
 }
 
 /* ---------- views ---------- */
-const TABS = [["dash", "Dashboard"], ["ids", "All IDs"], ["req", "New ID"], ["login", "Login"], ["fb", "Feedback"], ["upd", "App update"], ["notice", "Notice"], ["fest", "Festivals"], ["db", "Database"], ["reports", "Reports"], ["log", "Activity"], ["admins", "Admins"]];
+const TABS = [["dash", "Dashboard"], ["ids", "All IDs"], ["req", "New ID"], ["login", "Login"], ["fb", "Feedback"], ["upd", "App update"], ["notice", "Notice"], ["fest", "Festivals"], ["gift", "Gift cards"], ["db", "Database"], ["reports", "Reports"], ["log", "Activity"], ["admins", "Admins"]];
 
 function statusOf(r) {
   if (r.admin) return ["Admin", "ok"];
@@ -714,7 +728,109 @@ function vDash() {
     h("div", { class: "card" }, h("h3", { text: "Notice" }),
       n && n.id ? h("div", { class: "kv", text: n.title + " · " + fmt(n.ts) }) : h("div", { class: "muted", text: "কোনো নোটিশ publish করা নেই।" })));
 }
-const VIEWS = { dash: vDash, ids: vIds, req: vReq, login: vLogin, fb: vFb, upd: vUpd, notice: vNotice, fest: vFest, db: vDb, reports: vReports, log: vLog, admins: vAdmins };
+/* ---------- v146: Gift cards (users send them as greetings from 📎 → 🎁 Gift card) ---------- */
+const HEXC = /^#[0-9a-fA-F]{6}$/;
+const giftForm = { id: "", t: "", cat: "", msg: "", e: "🎁", c1: "#1f4e79", c2: "#3d7a78", img: "" };
+const giftReset = () => { Object.assign(giftForm, { id: "", t: "", cat: "", msg: "", e: "🎁", c1: "#1f4e79", c2: "#3d7a78", img: "" }); };
+const GIFT_STARTER = [
+  ["শুভ জন্মদিন", "জন্মদিন", "🎂", "#e8836b", "#f6c177", "শুভ জন্মদিন! তোমার দিনটা হোক আনন্দে ভরা। 🎉"],
+  ["ঈদ মোবারক", "ঈদ", "🌙", "#0f766e", "#14b8a6", "ঈদ মোবারক! আল্লাহ সবার জীবনে সুখ-শান্তি দিন।"],
+  ["শুভ নববর্ষ", "নববর্ষ", "🎊", "#c2410c", "#f59e0b", "শুভ নববর্ষ! নতুন বছর ভালো কাটুক।"],
+  ["শুভ বিজয়া", "পূজা", "🪔", "#9d174d", "#f97316", "শুভ বিজয়া! সবাইকে শুভেচ্ছা ও ভালোবাসা।"],
+  ["অভিনন্দন", "অভিনন্দন", "🏆", "#1d4ed8", "#38bdf8", "অভিনন্দন! তোমার সাফল্যে আমরা গর্বিত।"],
+  ["শুভ বিবাহ", "বিবাহ", "💍", "#7e22ce", "#ec4899", "নতুন জীবনের জন্য অনেক অনেক শুভকামনা। 💐"],
+  ["ধন্যবাদ", "ধন্যবাদ", "🙏", "#166534", "#4ade80", "অনেক ধন্যবাদ! তোমার জন্য কৃতজ্ঞ।"],
+  ["তাড়াতাড়ি সুস্থ হও", "সুস্থতা", "💐", "#b91c1c", "#fb7185", "দ্রুত সুস্থ হয়ে ওঠো, তোমার জন্য দোয়া ও শুভকামনা।"],
+  ["শুভ রাত্রি", "শুভেচ্ছা", "🌙", "#1e1b4b", "#4338ca", "শুভ রাত্রি! মিষ্টি স্বপ্ন দেখো।"],
+  ["ভালোবাসা", "ভালোবাসা", "❤️", "#be123c", "#fb7185", "তোমাকে অনেক ভালোবাসি। ❤️"]
+];
+function giftFace(g) {
+  const ok = (c, d) => HEXC.test(c || "") ? c : d;
+  const box = h("div", { class: "gface", style: "background:linear-gradient(135deg," + ok(g.c1, "#1f4e79") + "," + ok(g.c2, "#3d7a78") + ")" });
+  if (g.img && /^data:image\//.test(g.img)) box.append(h("img", { class: "gimg", src: g.img, alt: "" }));
+  box.append(h("div", { class: "ge", text: g.e || "🎁" }), h("div", { class: "gt", text: g.t || "কার্ডের নাম" }));
+  if (g.msg) box.append(h("div", { class: "gw", text: g.msg }));
+  return box;
+}
+function giftCompress(file) {
+  return new Promise((res, rej) => {
+    const im = new Image(), url = URL.createObjectURL(file);
+    im.onload = () => {
+      let max = 520, q = 0.72, out = "";
+      for (let k = 0; k < 6; k++) {
+        const sc = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement("canvas");
+        c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc);
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+        out = c.toDataURL("image/jpeg", q);
+        if (out.length < 110000) break;
+        max = Math.round(max * 0.8); q = Math.max(0.5, q - 0.07);
+      }
+      URL.revokeObjectURL(url);
+      if (out.length < 120000) res(out); else rej(new Error("ছবিটা অনেক বড়, ছোট ছবি দিন"));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error("ছবি লোড করা যায়নি")); };
+    im.src = url;
+  });
+}
+async function giftSave() {
+  const t = giftForm.t.trim(), cat = giftForm.cat.trim(), msg = giftForm.msg.trim(), e = giftForm.e.trim() || "🎁";
+  if (!t) return toast("কার্ডের নাম দিন", true);
+  if (!HEXC.test(giftForm.c1) || !HEXC.test(giftForm.c2)) return toast("রঙ ঠিক নেই", true);
+  const key = giftForm.id || ("g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5));
+  const old = S.gifts[key] || {};
+  const item = { t, cat, msg, e, c1: giftForm.c1, c2: giftForm.c2, on: old.on !== false, ts: old.ts || nowTs() };
+  if (giftForm.img) item.img = giftForm.img;
+  if (await run(() => set(ref(db, "giftCards/" + key), item), giftForm.id ? "কার্ড আপডেট হয়েছে" : "কার্ড যোগ হয়েছে")) { giftReset(); render(true); }
+}
+function giftEdit(k) {
+  const g = S.gifts[k]; if (!g) return;
+  Object.assign(giftForm, { id: k, t: g.t || "", cat: g.cat || "", msg: g.msg || "", e: g.e || "🎁", c1: g.c1 || "#1f4e79", c2: g.c2 || "#3d7a78", img: g.img || "" });
+  render(true); $("#view").scrollTop = 0;
+}
+const giftToggle = k => run(() => update(ref(db, "giftCards/" + k), { on: S.gifts[k].on === false }), S.gifts[k].on === false ? "কার্ড চালু হয়েছে" : "কার্ড লুকানো হয়েছে");
+async function giftDelete(k) {
+  const g = S.gifts[k]; if (!g || !ask("\"" + g.t + "\" কার্ডটা মুছে ফেলবেন? ইউজারের আগে পাঠানো কার্ড চ্যাটে থেকে যাবে।")) return;
+  if (giftForm.id === k) giftReset();
+  await run(() => remove(ref(db, "giftCards/" + k)), "কার্ড মুছে ফেলা হয়েছে");
+}
+async function giftSeed() {
+  if (!ask("রেডিমেড ১০টা কার্ড যোগ করবেন?")) return;
+  const up = {}, base = nowTs();
+  GIFT_STARTER.forEach(([t, cat, e, c1, c2, msg], i) => { up["giftCards/gs" + base.toString(36) + i] = { t, cat, msg, e, c1, c2, on: true, ts: base - i }; });
+  await run(() => update(ref(db), up), "১০টা কার্ড যোগ হয়েছে");
+}
+function vGift() {
+  const keys = Object.keys(S.gifts || {}).filter(k => S.gifts[k] && S.gifts[k].t).sort((a, b) => (S.gifts[b].ts || 0) - (S.gifts[a].ts || 0));
+  const pv = h("div", { class: "gprev" }), upd = () => pv.replaceChildren(giftFace(giftForm));
+  upd();
+  const on = key => e => { giftForm[key] = e.target.value; upd(); };
+  const imgIn = h("input", { type: "file", accept: "image/*", onchange: async e => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try { giftForm.img = await giftCompress(f); render(true); } catch (er) { toast(er.message, true); }
+  } });
+  const form = h("div", { class: "card" }, h("h3", { text: giftForm.id ? "কার্ড এডিট করুন" : "নতুন Gift card" }), pv,
+    h("label", { text: "নাম (যেমন: শুভ জন্মদিন)" }), h("input", { type: "text", maxlength: "40", value: giftForm.t, oninput: on("t") }),
+    h("label", { text: "ক্যাটাগরি (ঐচ্ছিক, যেমন: জন্মদিন)" }), h("input", { type: "text", maxlength: "30", value: giftForm.cat, oninput: on("cat") }),
+    h("label", { text: "ডিফল্ট শুভেচ্ছা বার্তা (ইউজার বদলাতে পারবে)" }), h("textarea", { rows: "3", maxlength: "300", value: giftForm.msg, oninput: on("msg") }),
+    h("label", { text: "ইমোজি" }), h("input", { type: "text", maxlength: "8", value: giftForm.e, oninput: on("e") }),
+    h("div", { class: "gcols" },
+      h("div", {}, h("label", { text: "রঙ ১" }), h("input", { type: "color", value: giftForm.c1, oninput: on("c1") })),
+      h("div", {}, h("label", { text: "রঙ ২" }), h("input", { type: "color", value: giftForm.c2, oninput: on("c2") }))),
+    h("label", { text: "ছবি (ঐচ্ছিক — কার্ডের ব্যাকগ্রাউন্ড)" }), imgIn,
+    giftForm.img ? h("div", { class: "acts" }, btn("ছবি সরান", "d", () => { giftForm.img = ""; render(true); })) : null,
+    h("div", { class: "acts" }, btn(giftForm.id ? "💾 সেভ করুন" : "➕ যোগ করুন", "", giftSave), giftForm.id ? btn("বাতিল", "d", () => { giftReset(); render(true); }) : null));
+  const out = [h("h2", { text: "Gift cards" }),
+    h("p", { class: "sub", text: "এখানে কার্ড যোগ করলে সব ইউজার অ্যাপে 📎 → 🎁 Gift card থেকে কার্ডগুলো দেখতে এবং যে কাউকে শুভেচ্ছা হিসেবে পাঠাতে পারবে। মোট " + keys.length + " টি।" }), form];
+  if (!keys.length) out.push(h("div", { class: "card" }, h("div", { class: "muted", text: "এখনো কোনো কার্ড নেই।" }), h("div", { class: "acts" }, btn("✨ রেডিমেড ১০টা কার্ড যোগ করুন", "", giftSeed))));
+  else out.push(h("div", { class: "ggrid" }, ...keys.map(k => {
+    const g = S.gifts[k], hid = g.on === false;
+    return h("div", { class: "card" }, giftFace(g),
+      h("div", { class: "top", style: "margin-top:10px" }, h("div", { class: "t", text: g.cat || "—" }), badge(hid ? "Hidden" : "Live", hid ? "warn" : "ok")),
+      h("div", { class: "acts" }, btn("Edit", "", () => giftEdit(k)), btn(hid ? "Show" : "Hide", "", () => giftToggle(k)), btn("Delete", "d", () => giftDelete(k))));
+  })));
+  return h("div", {}, ...out);
+}
+const VIEWS = { dash: vDash, ids: vIds, req: vReq, login: vLogin, fb: vFb, upd: vUpd, notice: vNotice, fest: vFest, gift: vGift, db: vDb, reports: vReports, log: vLog, admins: vAdmins };
 
 /* ---------- navigation / render ---------- */
 function setTab(t) { tab = t; dirty = false; closeSheet(); try { localStorage.setItem("nj_admin_tab", t); } catch {} render(true); $("#view").scrollTop = 0; }
